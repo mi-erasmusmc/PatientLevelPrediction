@@ -236,7 +236,37 @@ test_that("Check the riskWindow parameters: 365/start/365/start", {
                             rowIdsWithoutOutcome = c())
 })
 
+## first exposure only
 
+testthat::test_that("Testing firstExposureOnly - include patients with more than one exposure", {
+  settings <- default_settings
+  
+  # Set test parameters
+  settings$firstExposureOnly <- FALSE # Default
+  
+  # Test
+  studyPopulation <- do.call(createStudyPopulation, settings)
+  iscorrect_studyPopulation(studyPopulation,
+                            includedRowIds = c(5, 6),
+                            excludedRowIds = c(),
+                            rowIdsWithOutcome = c(6),
+                            rowIdsWithoutOutcome = c(5))
+}) 
+
+testthat::test_that("Testing firstExposureOnly - exclude patients with more than one exposure", {
+  settings <- default_settings
+  
+  # Set test parameters
+  settings$firstExposureOnly <- TRUE 
+  
+  # Test
+  studyPopulation <- do.call(createStudyPopulation, settings)
+  iscorrect_studyPopulation(studyPopulation,
+                            includedRowIds = c(5),
+                            excludedRowIds = c(6),
+                            rowIdsWithOutcome = c(),
+                            rowIdsWithoutOutcome = c(5))
+}) 
 
 testthat::test_that("Testing washout period - patients with prior observation period of at least 364 days", {
   settings <- default_settings
