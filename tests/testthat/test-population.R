@@ -88,10 +88,10 @@ test_that("Patients with outcome but without full time-at-risk are included", {
   # Test
   studyPopulation <- do.call(PatientLevelPrediction::createStudyPopulation, settings)
   iscorrect_studyPopulation(studyPopulation,
-                            includedRowIds = c(1, 3),
-                            excludedRowIds = c(),
+                            includedRowIds = c(1, 3, 4),
+                            excludedRowIds = c(2),
                             rowIdsWithOutcome = c(1, 3),
-                            rowIdsWithoutOutcome = c())
+                            rowIdsWithoutOutcome = c(4))
 })
 
 test_that("Patients with outcome but without full time-at-risk are excluded", {
@@ -105,26 +105,26 @@ test_that("Patients with outcome but without full time-at-risk are excluded", {
   # Test
   studyPopulation <- do.call(PatientLevelPrediction::createStudyPopulation, settings)
   iscorrect_studyPopulation(studyPopulation,
-                            includedRowIds = c(3),
-                            excludedRowIds = c(1),
+                            includedRowIds = c(3, 4),
+                            excludedRowIds = c(1, 2),
                             rowIdsWithOutcome = c(3),
-                            rowIdsWithoutOutcome = c())
+                            rowIdsWithoutOutcome = c(4))
 })
 
 test_that("Patients without outcome but with full time-at-risk are included", {
   settings <- default_settings
   
   # Set test parameters
-  # settings$includeAllOutcomes not relevant for this test
+  settings$includeAllOutcomes <- FALSE
   settings$requireTimeAtRisk <- TRUE
   settings$minTimeAtRisk <- 80
   
   # Test
   studyPopulation <- do.call(PatientLevelPrediction::createStudyPopulation, settings)
   iscorrect_studyPopulation(studyPopulation,
-                            includedRowIds = c(2, 4),
+                            includedRowIds = c(1, 2, 3, 4),
                             excludedRowIds = c(),
-                            rowIdsWithOutcome = c(),
+                            rowIdsWithOutcome = c(1, 3),
                             rowIdsWithoutOutcome = c(2, 4))
 })
 
@@ -132,16 +132,16 @@ test_that("Patients without outcome and without full time-at-risk are excluded",
   settings <- default_settings
   
   # Set test parameters
-  # settings$includeAllOutcomes not relevant for this test
+  settings$includeAllOutcomes <- FALSE
   settings$requireTimeAtRisk <- TRUE
   settings$minTimeAtRisk <- 100
   
   # Test
   studyPopulation <- do.call(PatientLevelPrediction::createStudyPopulation, settings)
   iscorrect_studyPopulation(studyPopulation,
-                            includedRowIds = c(4),
-                            excludedRowIds = c(2),
-                            rowIdsWithOutcome = c(),
+                            includedRowIds = c(3, 4),
+                            excludedRowIds = c(1, 2),
+                            rowIdsWithOutcome = c(3),
                             rowIdsWithoutOutcome = c(4))
 })
 
@@ -236,7 +236,35 @@ test_that("Check the riskWindow parameters: 365/start/365/start", {
                             rowIdsWithoutOutcome = c())
 })
 
+testthat::test_that("Testing firstExposureOnly - include patients with more than one exposure", {
+  settings <- default_settings
+  
+  # Set test parameters
+  settings$firstExposureOnly <- FALSE
+  
+  # Test
+  studyPopulation <- do.call(PatientLevelPrediction::createStudyPopulation, settings)
+  iscorrect_studyPopulation(studyPopulation,
+                            includedRowIds = c(5, 6),
+                            excludedRowIds = c(),
+                            rowIdsWithOutcome = c(6),
+                            rowIdsWithoutOutcome = c(5))
+}) 
 
+testthat::test_that("Testing firstExposureOnly - exclude patients with more than one exposure", {
+  settings <- default_settings
+  
+  # Set test parameters
+  settings$firstExposureOnly <- TRUE 
+  
+  # Test
+  studyPopulation <- do.call(PatientLevelPrediction::createStudyPopulation, settings)
+  iscorrect_studyPopulation(studyPopulation,
+                            includedRowIds = c(5),
+                            excludedRowIds = c(6),
+                            rowIdsWithOutcome = c(),
+                            rowIdsWithoutOutcome = c(5))
+}) 
 
 testthat::test_that("Testing washout period - patients with prior observation period of at least 364 days", {
   settings <- default_settings
