@@ -20,7 +20,7 @@ context("Population")
 
 ### Help functions
 getPlpData <- function(){
-  return(readRDS(paste0(getwd(), "/tests/testthat/plpData_sample.rds")))
+  return(readRDS(paste0(getwd(), "/data/plpData_sample.rds")))
 }
 
 getDefaultPopulationSettings <- function(outcomeId = 2){
