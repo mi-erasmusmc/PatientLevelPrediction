@@ -160,8 +160,8 @@ test_that("Check the riskWindow parameters: 0/start/365/start", {
   iscorrect_studyPopulation(studyPopulation,
                             includedRowIds = c(),
                             excludedRowIds = c(),
-                            rowIdsWithOutcome = c(1,3,6,8,10,12,15,16,17,19,20),
-                            rowIdsWithoutOutcome = c())
+                            rowIdsWithOutcome = c(1,3,6,8,10,12,15,17,19,20,23),
+                            rowIdsWithoutOutcome = c(18,21,22))
 })
 
 test_that("Check the riskWindow parameters: 0/start/10/start", {
@@ -178,8 +178,8 @@ test_that("Check the riskWindow parameters: 0/start/10/start", {
   iscorrect_studyPopulation(studyPopulation,
                             includedRowIds = c(),
                             excludedRowIds = c(),
-                            rowIdsWithOutcome = c(17),
-                            rowIdsWithoutOutcome = c())
+                            rowIdsWithOutcome = c(17, 19),
+                            rowIdsWithoutOutcome = c(1, 3, 6, 8, 10, 12, 15, 17, 20, 23))
 })
 
 test_that("Check the riskWindow parameters: 0/start/10/end", {
@@ -187,7 +187,7 @@ test_that("Check the riskWindow parameters: 0/start/10/end", {
   
   # Set test parameters
   settings$riskWindowStart <- 0
-  settings$startAnchor <- 'cohort start'
+  settings$startAnchor <- 'cohort end'
   settings$riskWindowEnd <- 10
   settings$endAnchor <- 'cohort end'
   
@@ -197,7 +197,7 @@ test_that("Check the riskWindow parameters: 0/start/10/end", {
                             includedRowIds = c(),
                             excludedRowIds = c(),
                             rowIdsWithOutcome = c(18),
-                            rowIdsWithoutOutcome = c())
+                            rowIdsWithoutOutcome = c(2,4,5,7,9,11,13))
 })
 
 test_that("Check the riskWindow parameters: 0/start/0/start", {
@@ -215,7 +215,7 @@ test_that("Check the riskWindow parameters: 0/start/0/start", {
                             includedRowIds = c(),
                             excludedRowIds = c(),
                             rowIdsWithOutcome = c(19),
-                            rowIdsWithoutOutcome = c())
+                            rowIdsWithoutOutcome = c(1, 3, 6, 8, 10, 12, 15, 17, 18, 20, 21, 22, 23))
 })
 
 test_that("Check the riskWindow parameters: 365/start/365/start", {
@@ -233,7 +233,7 @@ test_that("Check the riskWindow parameters: 365/start/365/start", {
                             includedRowIds = c(),
                             excludedRowIds = c(),
                             rowIdsWithOutcome = c(20),
-                            rowIdsWithoutOutcome = c())
+                            rowIdsWithoutOutcome = c(5,7,9,11,13,18,21,22))
 })
 
 testthat::test_that("Testing firstExposureOnly - include patients with more than one exposure", {
