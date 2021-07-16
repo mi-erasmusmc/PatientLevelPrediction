@@ -162,12 +162,12 @@ getPlpData <- function(connectionDetails,
   cohorts <- DatabaseConnector::querySql(connection, cohortSql)
   colnames(cohorts) <- SqlRender::snakeCaseToCamelCase(colnames(cohorts))
   metaData.cohort <- list(cohortId = cohortId,
-                   studyStartDate = studyStartDate,
-                   studyEndDate = studyEndDate)
+                          studyStartDate = studyStartDate,
+                          studyEndDate = studyEndDate)
   
   if(nrow(cohorts)==0)
     stop('Target population is empty')
-
+  
   delta <- Sys.time() - start
   writeLines(paste("Loading cohorts took", signif(delta, 3), attr(delta, "units")))
   
@@ -187,35 +187,35 @@ getPlpData <- function(connectionDetails,
                          indexName = 'covariates_covariateId')
   Andromeda::createIndex(covariateData$covariates, c('covariateId', 'covariateValue'),
                          indexName = 'covariates_covariateId_value')
-
-  if(max(outcomeIds)!=-999){
-  writeLines("Fetching outcomes from server")
-  start <- Sys.time()
-  outcomeSql <- SqlRender::loadRenderTranslateSql("GetOutcomes.sql",
-                                                  packageName = "PatientLevelPrediction",
-                                                  dbms = dbms,
-                                                  oracleTempSchema = oracleTempSchema,
-                                                  cdm_database_schema = cdmDatabaseSchema,
-                                                  outcome_database_schema = outcomeDatabaseSchema,
-                                                  outcome_table = outcomeTable,
-                                                  outcome_ids = outcomeIds,
-                                                  cdm_version = cdmVersion)
-  outcomes <- DatabaseConnector::querySql(connection, outcomeSql)
-  colnames(outcomes) <- SqlRender::snakeCaseToCamelCase(colnames(outcomes))
-  metaData.outcome <- data.frame(outcomeIds =outcomeIds)
-  attr(outcomes, "metaData") <- metaData.outcome
-  if(nrow(outcomes)==0)
-    stop('No Outcomes')
-
-  metaData.cohort$attrition <- getCounts2(cohorts,outcomes, "Original cohorts")
-  attr(cohorts, "metaData") <- metaData.cohort
   
-  delta <- Sys.time() - start
-  writeLines(paste("Loading outcomes took", signif(delta, 3), attr(delta, "units")))
+  if(max(outcomeIds)!=-999){
+    writeLines("Fetching outcomes from server")
+    start <- Sys.time()
+    outcomeSql <- SqlRender::loadRenderTranslateSql("GetOutcomes.sql",
+                                                    packageName = "PatientLevelPrediction",
+                                                    dbms = dbms,
+                                                    oracleTempSchema = oracleTempSchema,
+                                                    cdm_database_schema = cdmDatabaseSchema,
+                                                    outcome_database_schema = outcomeDatabaseSchema,
+                                                    outcome_table = outcomeTable,
+                                                    outcome_ids = outcomeIds,
+                                                    cdm_version = cdmVersion)
+    outcomes <- DatabaseConnector::querySql(connection, outcomeSql)
+    colnames(outcomes) <- SqlRender::snakeCaseToCamelCase(colnames(outcomes))
+    metaData.outcome <- data.frame(outcomeIds =outcomeIds)
+    attr(outcomes, "metaData") <- metaData.outcome
+    if(nrow(outcomes)==0)
+      stop('No Outcomes')
+    
+    metaData.cohort$attrition <- getCounts2(cohorts,outcomes, "Original cohorts")
+    attr(cohorts, "metaData") <- metaData.cohort
+    
+    delta <- Sys.time() - start
+    writeLines(paste("Loading outcomes took", signif(delta, 3), attr(delta, "units")))
   } else {
     outcomes <- NULL
   }
-
+  
   
   
   
@@ -254,12 +254,12 @@ getPlpData <- function(connectionDetails,
       # make sure time days populated
       if(length(covariateSettings$temporalStartDays)>0){
         timeReference = data.frame(timeId=1:length(covariateSettings$temporalStartDays),
-                                               startDay = covariateSettings$temporalStartDays, 
-                                               endDay = covariateSettings$temporalEndDays)
+                                   startDay = covariateSettings$temporalStartDays, 
+                                   endDay = covariateSettings$temporalEndDays)
       }
     }}
   
-
+  
   result <- list(cohorts = cohorts,
                  outcomes = outcomes,
                  covariateData = covariateData,
@@ -352,9 +352,9 @@ loadPlpData <- function(file, readOnly = TRUE) {
                  cohorts = readRDS(file.path(file, "cohorts.rds")),
                  outcomes = readRDS(file.path(file, "outcomes.rds")),
                  metaData = readRDS(file.path(file, "metaData.rds")))
-
+  
   class(result) <- "plpData"
-
+  
   return(result)
 }
 
@@ -438,8 +438,8 @@ savePlpModel <- function(plpModel, dirPath){
     ParallelLogger::logError('Moving model files error')
   }
   #============================================================
-    
-
+  
+  
   # if deep (keras) then save hdfs
   if(attr(plpModel, 'type')%in%c('deep', 'deepMulti','deepEnsemble')){
     
@@ -447,9 +447,9 @@ savePlpModel <- function(plpModel, dirPath){
       tryCatch(
         {#saveRDS(plpModel, file = file.path(dirPath,  "deepEnsemble_model.rds"))
           for (i in seq(plpModel$modelSettings$modelParameters$numberOfEnsembleNetwork)){
-          model<-keras::serialize_model(plpModel$model[[i]], include_optimizer = TRUE)
-          keras::save_model_hdf5(model, filepath = file.path(dirPath, "keras_model",i))
-        }},error=function(e) NULL
+            model<-keras::serialize_model(plpModel$model[[i]], include_optimizer = TRUE)
+            keras::save_model_hdf5(model, filepath = file.path(dirPath, "keras_model",i))
+          }},error=function(e) NULL
       )
     }
     if(attr(plpModel, 'type')=='deep'){
@@ -462,7 +462,7 @@ savePlpModel <- function(plpModel, dirPath){
     # fixing xgboost save/load issue
     xgboost::xgb.save(model = plpModel$model, fname = file.path(dirPath, "model.json"))
   } else {  
-  saveRDS(plpModel$model, file = file.path(dirPath, "model.rds"))
+    saveRDS(plpModel$model, file = file.path(dirPath, "model.rds"))
   }
   #saveRDS(plpModel$predict, file = file.path(dirPath, "transform.rds"))
   saveRDS(NULL, file = file.path(dirPath, "transform.rds"))
@@ -556,7 +556,7 @@ loadPlpModel <- function(dirPath) {
   covariateMap <- tryCatch(readRDS(file.path(dirPath, "covariateMap.rds")),
                            error=function(e) NULL) 
   analysisId <- tryCatch(readRDS(file.path(dirPath, "analysisId.rds")),
-                           error=function(e) NULL) 
+                         error=function(e) NULL) 
   
   if(file.exists(file.path(dirPath, "keras_model"))){
     ensure_installed("keras")
@@ -614,6 +614,10 @@ updateModelLocation  <- function(plpModel, dirPath){
     plpModel$model <- file.path(dirPath,'ripper_model')
     plpModel$predict <- createTransform(plpModel)
   }
+  if( type =='EXPLORE'){
+    plpModel$model <- file.path(dirPath,'explore_model')
+    plpModel$predict <- createTransform(plpModel)
+  }
   if( type =='sagemaker'){
     plpModel$model$loc <- file.path(dirPath,'sagemaker_model')
     plpModel$predict <- createTransform(plpModel)
@@ -631,7 +635,7 @@ updateModelLocation  <- function(plpModel, dirPath){
   }
   if( type =='deepMulti'){
     attr(plpModel, 'inputs') <- tryCatch(readRDS(file.path(dirPath, "inputs_attr.rds")),
-                                       error=function(e) NULL) 
+                                         error=function(e) NULL) 
     plpModel$predict <- createTransform(plpModel)
     
   }
@@ -748,10 +752,10 @@ formatCovariateSettings <- function(covariateSettings){
           covariateSettings[[i]][[j]] <- paste0(deparse(covariateSettings[[i]][[j]]), collapse = " ")
         }
       }
-    tempResult <- data.frame(names = names(unlist(covariateSettings[[i]])),
-               values = unlist(covariateSettings[[i]]))
-    tempResult$settingsId <- i
-    return(tempResult)
+      tempResult <- data.frame(names = names(unlist(covariateSettings[[i]])),
+                               values = unlist(covariateSettings[[i]]))
+      tempResult$settingsId <- i
+      return(tempResult)
     })), 
     fun = unlist(lapply(covariateSettings, function(x) attr(x,'fun')))
     )
@@ -788,7 +792,7 @@ reformatCovariateSettings <- function(covariateSettingsLocation){
     
   }
   
-return(covariateSettings)
+  return(covariateSettings)
 }
 
 
@@ -861,7 +865,7 @@ loadPlpFromCsv <- function(dirPath){
   
   #covariateSummary
   result$covariateSummary <- utils::read.csv(file = file.path(dirPath,'covariateSummary.csv'))
-
+  
   #executionSummary
   result$executionSummary <- list()
   result$executionSummary$PackageVersion <- tryCatch({as.list(utils::read.csv(file = file.path(dirPath, 'executionSummary','PackageVersion.csv')))}, error = function(e){return(NULL)})
@@ -877,7 +881,7 @@ loadPlpFromCsv <- function(dirPath){
   result$inputSetting$modelSettings$name <- tryCatch({utils::read.csv(file = file.path(dirPath, 'inputSetting','modelSettings_name.csv'))$x}, error = function(e){return(NULL)})
   
   result$inputSetting$dataExtrractionSettings$covariateSettings <- tryCatch({reformatCovariateSettings(file.path(dirPath, 'inputSetting','dataExtrractionSettings_covariateSettings.csv'))}, error = function(e){return(NULL)})
-
+  
   result$inputSetting$populationSettings <- tryCatch({as.list(utils::read.csv(file = file.path(dirPath, 'inputSetting','populationSettings.csv')))}, error = function(e){return(NULL)})
   result$inputSetting$populationSettings$attrition <- tryCatch({utils::read.csv(file = file.path(dirPath, 'inputSetting','populationSettings_attrition.csv'))}, error = function(e){return(NULL)})
   

@@ -119,7 +119,7 @@ predict.xgboost <- function(plpModel,population, plpData, ...){
 }
 
 # for RIPPER
-predict.RIPPER <- function(plpModel,population, plpData, ...){ 
+predict.ripper <- function(plpModel,population, plpData, ...){ 
   result <- toSparseM(plpData,population,map=plpModel$covariateMap,)
   data <- result$data[population$rowId,]
   data <- as.data.frame(as.matrix(data)) # TODO: make this more efficient?
@@ -134,6 +134,21 @@ predict.RIPPER <- function(plpModel,population, plpData, ...){
   return(prediction)
 }
 
+# for EXPLORE
+predict.explore <- function(plpModel,population, plpData, ...){ 
+  result <- toSparseM(plpData,population,map=plpModel$covariateMap,)
+  data <- result$data[population$rowId,]
+  data <- as.data.frame(as.matrix(data)) # TODO: make this more efficient?
+  
+  # TODO: filter out covariates?
+  prediction <- data.frame(rowId=population$rowId,
+                           value=as.numeric(Explore::predictExplore(model = plpModel$model, test_data = data)))
+  
+  prediction <- merge(population, prediction, by='rowId', all.x=T, fill=0)
+  prediction <- prediction[,colnames(prediction)%in%c('rowId','subjectId','cohortStartDate','outcomeCount','indexes', 'value')] # need to fix no index issue
+  attr(prediction, "metaData") <- list(predictionType = "binary") 
+  return(prediction)
+}
 
 predict.pythonReticulate <- function(plpModel, population, plpData){
   
@@ -572,9 +587,9 @@ predictProbabilities <- function(predictiveModel, population, covariateData) {
   
   ParallelLogger::logTrace('predictProbabilities - predictAndromeda start')
   prediction <- predictAndromeda(predictiveModel$coefficients,
-                            population,
-                            covariateData,
-                            predictiveModel$modelType)
+                                 population,
+                                 covariateData,
+                                 predictiveModel$modelType)
   ParallelLogger::logTrace('predictProbabilities - predictAndromeda end')
   prediction$time <- NULL
   attr(prediction, "modelType") <- predictiveModel$modelType
@@ -622,7 +637,7 @@ predictAndromeda <- function(coefficients, population, covariateData, modelType 
   coefficients <- coefficients[!names(coefficients)%in%'(Intercept)']
   coefficients <- data.frame(beta = as.numeric(coefficients),
                              covariateId = bit64::as.integer64(names(coefficients)) #!@ modified 
-                             )
+  )
   coefficients <- coefficients[coefficients$beta != 0, ]
   if(sum(coefficients$beta != 0)>0){
     covariateData$coefficients <- coefficients

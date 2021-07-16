@@ -1,4 +1,4 @@
-# @file RIPPER.R
+# @file EXPLORE.R
 #
 # Copyright 2020 Observational Health Data Sciences and Informatics
 #
@@ -16,15 +16,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#' Create setting for RIPPER using JRip (Weka) implementation
+#' Create setting for EXPLORE (https://github.com/mi-erasmusmc/explore/)
 #'
 #' @param variableNumer       An option to add a seed when training the final model
 #'
 #' @examples
-#' model.ripper <- setRIPPER(variableNumber=2000)
+#' model.explore <- setEXPLORE(variableNumber=2000)
 #'
 #' @export
-setRIPPER <- function(variableNumber=2000){
+setEXPLORE <- function(output_path, variableNumber=2000){
   
   # check input
   if(length(variableNumber)!=1)
@@ -33,15 +33,15 @@ setRIPPER <- function(variableNumber=2000){
   if(!class(variableNumber) %in% c("numeric", "integer"))
     stop('Can incorrect class for variableNumber - must be numeric')
   
-  result <- list(model='fitRIPPER', param= list('variableNumber'=variableNumber), name='RIPPER')
+  result <- list(model='fitEXPLORE', param= list('output_path'=output_path, 'variableNumber'=variableNumber), name='EXPLORE')
   class(result) <- 'modelSettings' 
   
   return(result)
 }
 
 
-#RIPPER
-fitRIPPER <- function(population, plpData, param, quiet=F,
+# EXPLORE
+fitEXPLORE <- function(population, plpData, param, quiet=F,
                       outcomeId, cohortId, ...){
   
   # check plpData is libsvm format or convert if needed
@@ -63,7 +63,7 @@ fitRIPPER <- function(population, plpData, param, quiet=F,
   }
   
   if(!quiet)
-    ParallelLogger::logTrace('Training RIPPER model')
+    ParallelLogger::logTrace('Training EXPLORE model')
   
   start <- Sys.time()
   
@@ -103,24 +103,23 @@ fitRIPPER <- function(population, plpData, param, quiet=F,
   pred$value <- NA
   
   var_sel <- as.data.frame(cbind(selection[[2]],selection[[1]]))
-  var_sel <- as.data.frame(sapply(var_sel, function(col) factor(col, levels = c(0,1))), stringsAsFactors = TRUE)
+  # var_sel <- as.data.frame(sapply(var_sel, function(col) factor(col, levels = c(0,1))), stringsAsFactors = TRUE)
   colnames(var_sel)[1] <- "y"
   
   # train model
-  # JRip cannot handle numeric class
-  library('RWeka')
-  modelTrained <- JRip(y ~ . , data = var_sel)
+  library('Explore')
+  modelTrained <- Explore::trainExplore(output_path = param$output_path, train_data = var_sel, ClassFeature = "'y'", PositiveClass = 1)
   
   # cross validation
   for(i in 1:max(population$indexes)) {
     hold_out <- which(population[population$indexes > 0,]$indexes==i)
     
-    subset_fit <- JRip(y ~ . , data = var_sel[-hold_out,])
+    subset_fit <- Explore::trainExplore(output_path = param$output_path, train_data = var_sel[-hold_out,], ClassFeature = "'y'", PositiveClass = 1)
     
     # print model
     print(subset_fit) 
     
-    subset_predict <- as.numeric(predict(subset_fit, newdata = var_sel[hold_out,])==1)
+    subset_predict <- as.numeric(Explore::predictExplore(model = subset_fit, test_data = var_sel[hold_out,]))
     pred$value[hold_out] <- subset_predict
     
     auc <- aucWithoutCi(subset_predict, pred$outcomeCount[pred$rowId %in% hold_out])
@@ -134,7 +133,7 @@ fitRIPPER <- function(population, plpData, param, quiet=F,
   ParallelLogger::logInfo('Getting predictions on train set')
   prediction <- merge(prediction, pred[,c('rowId', 'value')], by='rowId')
   
-  # get the univeriate selected features (ripper requires dense so need feat sel)
+  # get the univeriate selected features (explore requires dense so need feat sel)
   varImp <- selection[[4]]
   varImp[is.na(varImp)] <- 0
   if(mean(varImp)==0)
@@ -151,7 +150,7 @@ fitRIPPER <- function(population, plpData, param, quiet=F,
   comp <- start-Sys.time()
   
   result <- list(model = modelTrained,
-                 modelSettings = list(model='RIPPER', modelParameters=param),
+                 modelSettings = list(model='EXPLORE', modelParameters=param),
                  trainCVAuc = auc,
                  hyperParamSearch = NULL,
                  metaData = plpData$metaData,
@@ -166,7 +165,7 @@ fitRIPPER <- function(population, plpData, param, quiet=F,
   )
   
   class(result) <- 'plpModel'
-  attr(result, 'type') <- 'ripper'
+  attr(result, 'type') <- 'explore'
   attr(result, 'predictionType') <- 'binary'
   return(result)
 }
