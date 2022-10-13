@@ -1,0 +1,42 @@
+{
+  "analysisId": "2022-10-13-2",
+  "analysisSource": "",
+  "developmentDatabase": "Profile",
+  "attrition": [
+    {
+      "outcomeId": 2,
+      "description": "Simulated data",
+      "targetCount": 3074,
+      "uniquePeople": 3074,
+      "outcomes": 311,
+      "attr_row.names": 1,
+      "attr_class": "data.frame"
+    },
+    {
+      "outcomeId": 2,
+      "description": "Initial plpData cohort or population",
+      "targetCount": 3074,
+      "uniquePeople": 3074,
+      "outcomes": 282,
+      "attr_row.names": 2,
+      "attr_class": "data.frame"
+    },
+    {
+      "outcomeId": 2,
+      "description": "Removing non-outcome subjects with insufficient time at risk (if any)",
+      "targetCount": 3074,
+      "uniquePeople": 3074,
+      "outcomes": 282,
+      "attr_row.names": 3,
+      "attr_class": "data.frame"
+    }
+  ],
+  "trainingTime": "20.9975011348724 secs",
+  "trainingDate": "2022-10-13",
+  "modelName": "logistic",
+  "finalModelParameters": {
+    "variance": 0.0432,
+    "log_likelihood": -203.4324
+  },
+  "hyperParamSearch": [0.89, 0.9261, 0.9397]
+}

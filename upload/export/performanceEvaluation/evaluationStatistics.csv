@@ -1,0 +1,58 @@
+"evaluation","metric","value"
+"Test","populationSize",768
+"Test","outcomeCount",70
+"Test","AUROC",0.931968890708146
+"Test","95% lower AUROC",0.897121000402772
+"Test","95% upper AUROC",0.966816781013519
+"Test","AUPRC",0.721740688777107
+"Test","brier score",0.0312494178773901
+"Test","brier score scaled",0.623588097196291
+"Test","Eavg",0.014501358293206
+"Test","E90",0.0237898902161748
+"Test","Emax",0.391428086946856
+"Test","calibrationInLarge mean prediction",0.0913671666822326
+"Test","calibrationInLarge observed risk",0.0911458333333333
+"Test","calibrationInLarge intercept",-0.00741592970757805
+"Test","weak calibration intercept",-0.0663462275488876
+"Test","weak calibration gradient",0.967401557542538
+"Test","Hosmer-Lemeshow calibration intercept",0.00493530255023617
+"Test","Hosmer-Lemeshow calibration gradient",0.943203290350867
+"Test","Average Precision",0.728753240901618
+"Train","populationSize",2306
+"Train","outcomeCount",212
+"Train","AUROC",0.989347371645853
+"Train","95% lower AUROC",0.983659935652939
+"Train","95% upper AUROC",0.995034807638766
+"Train","AUPRC",0.943563817167204
+"Train","brier score",0.0195778260912051
+"Train","brier score scaled",0.765481746760959
+"Train","Eavg",0.0299895395410664
+"Train","E90",0.0740412637025668
+"Train","Emax",0.796070955269655
+"Train","calibrationInLarge mean prediction",0.0919326443195102
+"Train","calibrationInLarge observed risk",0.0919340849956635
+"Train","calibrationInLarge intercept",5.01337054854797e-05
+"Train","weak calibration intercept",0.535431753753556
+"Train","weak calibration gradient",1.26174215482916
+"Train","Hosmer-Lemeshow calibration intercept",-0.0108666946766434
+"Train","Hosmer-Lemeshow calibration gradient",1.11835777139903
+"Train","Average Precision",0.943658094640523
+"CV","populationSize",2306
+"CV","outcomeCount",212
+"CV","AUROC",0.919040925555496
+"CV","95% lower AUROC",0.891005632710459
+"CV","95% upper AUROC",0.947076218400532
+"CV","AUPRC",0.818566832412746
+"CV","brier score",0.0228213212381594
+"CV","brier score scaled",0.726301501567901
+"CV","Eavg",0.0171000626382176
+"CV","E90",0.0312269423152489
+"CV","Emax",0.518952486071367
+"CV","calibrationInLarge mean prediction",0.0918103919088539
+"CV","calibrationInLarge observed risk",0.0919340849956635
+"CV","calibrationInLarge intercept",0.00377224418312015
+"CV","weak calibration intercept",0.308324704005069
+"CV","weak calibration gradient",1.17411935780257
+"CV","Hosmer-Lemeshow calibration intercept",-0.0056412699819896
+"CV","Hosmer-Lemeshow calibration gradient",1.06265248591594
+"CV","Average Precision",0.81974377828685
