@@ -752,7 +752,7 @@ addCovariateSummary <- function(conn, resultSchema, targetDialect,
                                 tableName = 'covariate_summary',
                                 tempEmulationSchema = tempEmulationSchema)
   isValid <- sum(colnames(value)%in%columnNames) == length(columnNames)
-  
+
   exists <- checkResultExists(conn = conn, 
                               resultSchema = resultSchema, 
                               targetDialect = targetDialect, 

@@ -21,3 +21,4 @@ standalone/build/*
 /python_models/*
 /mycache/*
 /inst/shiny/DiagnosticsExplorer/rsconnect/*
+/upload/*

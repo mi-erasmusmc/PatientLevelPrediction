@@ -4,23 +4,25 @@ library(PatientLevelPrediction)
 library(DatabaseConnector)
 library(jsonlite)
 library(devtools)
-library(dplyr)
+library(jsonlite)
+
+Sys.setenv("DATABASECONNECTOR_JAR_FOLDER" = "C:/[ DEV ]/[ DRIVER ]")
+Sys.setenv("PROJECT_FOLDER" = "C:/[ DEV ]/PredictionLibraryApp/PredictionLibraryR")
 
 myArgs = commandArgs(trailingOnly=TRUE)
 myDirectory = gsub("\\\\", "/", myArgs)
 hasDirectory <- !rlang::is_empty(myDirectory)
-resetDatabase = T
+resetDatabase = F
 saveLoc <- NULL
 
 if (hasDirectory) {
   ParallelLogger::logInfo(paste0("Importing data from: ", gsub("\\\\", "/", myDirectory), sep="", collapse=NULL))
+  setwd(myDirectory)
 } else {
-  saveLoc <- paste0(getwd(), "/Uploads/", gsub('[.]', '', format(Sys.time(),format="%Y%m%d%H%M%S%OS")))
+  saveLoc <- paste0(Sys.getenv("PROJECT_FOLDER"), "/upload/", gsub('[.]', '', format(Sys.time(),format="%Y%m%d%H%M%S%OS")))
   dir.create(saveLoc)
+  setwd(saveLoc)
 }
-
-Sys.setenv("DATABASECONNECTOR_JAR_FOLDER" = "C:/[ DEV ]/[ DRIVER ]")
-Sys.setenv("PROJECT_FOLDER" = "C:/[ DEV ]/PredictionLibraryApp/PredictionLibraryR")
 
 randVar <- rawToChar(as.raw(sample(c(65:90,97:122), 5, replace=T)))
 appendRandom <- function(x, rand = randVar){
@@ -134,38 +136,40 @@ if (!hasDirectory) {
 if (!hasDirectory) {
   savePlpShareable(result = plpResult, saveDirectory = file.path(paste0(unlist(strsplit(saveLoc, '/'))[-length(unlist(strsplit(saveLoc, '/')))], collapse = '/'), 'export'))
 } else {
-  PatientLevelPrediction::loadPlpShareable(loadDirectory = myDirectory)
+  ParallelLogger::logInfo(paste0('Reading model into runPlp object...'))
   
-  # connectionDetails  <- DatabaseConnector::createConnectionDetails(
-  #   dbms = "postgresql",
-  #   user = "postgres",
-  #   password = "12345",
-  #   pathToDriver = Sys.getenv("DATABASECONNECTOR_JAR_FOLDER"),
-  #   server = "127.0.0.1/postgres",
-  # )
-  # 
-  # databaseConnection <- DatabaseConnector::connect(connectionDetails)
-  # 
-  # PatientLevelPrediction::createPlpResultTables(
-  #   conn = databaseConnection,
-  #   resultSchema = "covid_vaccination_plp",
-  #   targetDialect = 'postgresql',
-  #   deleteTables = resetDatabase,
-  #   createTables = resetDatabase
-  # )
-  # 
-  # myDatabaseSchemaSettings <- PatientLevelPrediction::createDatabaseSchemaSettings(
-  #   resultSchema = 'covid_vaccination_plp',
-  #   tablePrefix = '',
-  #   targetDialect = 'postgresql',
-  #   tempEmulationSchema = NULL
-  # )
-  # 
-  # PatientLevelPrediction::insertCsvToDatabase(
-  #   csvFolder = file.path(myDirectory),
-  #   conn =  databaseConnection,
-  #   databaseSchemaSettings = myDatabaseSchemaSettings,
-  #   modelSaveLocation = file.path(myDirectory),
-  #   csvTableAppend = ''
-  # )
+  connectionDetails  <- DatabaseConnector::createConnectionDetails(
+    dbms = "postgresql",
+    user = "postgres",
+    password = "12345",
+    pathToDriver = Sys.getenv("DATABASECONNECTOR_JAR_FOLDER"),
+    server = "127.0.0.1/postgres"
+  )
+  con <- DatabaseConnector::connect(connectionDetails = connectionDetails)
+  
+  createPlpResultTables(
+    conn = con,
+    resultSchema = "covid_vaccination_plp",
+    targetDialect = 'postgresql',
+    deleteTables = resetDatabase,
+    createTables = resetDatabase
+  )
+  
+  runPlp <- loadPlpShareable(loadDirectory = myDirectory)
+  addRunPlpToDatabase(
+    databaseList = NULL,
+    conn = con,
+    runPlp = runPlp,
+    modelSaveLocation = myDirectory,
+    databaseSchemaSettings = createDatabaseSchemaSettings(
+      resultSchema = "covid_vaccination_plp",
+      targetDialect = "postgresql",
+      tablePrefix = "",
+    ),
+    cohortDefinitions = data.frame(
+      cohortName = c(strtoi(format(Sys.time(),format="%M%S%OS"))+1, strtoi(format(Sys.time(),format="%M%S%OS"))+2, strtoi(format(Sys.time(),format="%M%S%OS"))+3), 
+      cohortId = c(1,2,3), 
+      json = rep('bla',3)
+    )
+  )
 }

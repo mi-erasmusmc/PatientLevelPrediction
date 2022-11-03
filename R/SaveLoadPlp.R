@@ -431,15 +431,8 @@ savePlpShareable <- function(result, saveDirectory, minCellCount = 10){
   utils::write.csv(result$performanceEvaluation$predictionDistribution, file = file.path(saveDirectory, 'performanceEvaluation','predictionDistribution.csv'), row.names = F)
   
   if(!is.null(result$covariateSummary)){
-    #covariateSummary
     utils::write.csv(
-      removeCellCount(
-        result$covariateSummary,
-        minCellCount = minCellCount, 
-        filterColumns = c('CovariateCount', 'WithOutcome_CovariateCount', 'WithNoOutcome_CovariateCount'),
-        extraCensorColumns = c('WithOutcome_CovariateMean', 'WithNoOutcome_CovariateMean'),
-        restrictColumns = c('covariateId','covariateName', 'analysisId', 'conceptId','CovariateCount', 'covariateValue','WithOutcome_CovariateCount','WithNoOutcome_CovariateCount','WithOutcome_CovariateMean','WithNoOutcome_CovariateMean','StandardizedMeanDiff')
-      ), 
+     result$covariateSummary,
       file = file.path(saveDirectory,'covariateSummary.csv'), 
       row.names = F
     )
