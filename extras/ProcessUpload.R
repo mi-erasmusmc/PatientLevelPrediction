@@ -5,6 +5,7 @@ library(DatabaseConnector)
 library(jsonlite)
 library(devtools)
 library(jsonlite)
+library(zip)
 
 Sys.setenv("DATABASECONNECTOR_JAR_FOLDER" = "C:/[ DEV ]/[ DRIVER ]")
 Sys.setenv("PROJECT_FOLDER" = "C:/[ DEV ]/PredictionLibraryApp/PredictionLibraryR")
@@ -12,7 +13,7 @@ Sys.setenv("PROJECT_FOLDER" = "C:/[ DEV ]/PredictionLibraryApp/PredictionLibrary
 myArgs = commandArgs(trailingOnly=TRUE)
 myDirectory = gsub("\\\\", "/", myArgs)
 hasDirectory <- !rlang::is_empty(myDirectory)
-resetDatabase = F
+resetDatabase = T
 saveLoc <- NULL
 
 if (hasDirectory) {
@@ -134,7 +135,19 @@ if (!hasDirectory) {
 }
 
 if (!hasDirectory) {
-  savePlpShareable(result = plpResult, saveDirectory = file.path(paste0(unlist(strsplit(saveLoc, '/'))[-length(unlist(strsplit(saveLoc, '/')))], collapse = '/'), 'export'))
+  saveDirectory = file.path(paste0(unlist(strsplit(saveLoc, '/'))[-length(unlist(strsplit(saveLoc, '/')))], collapse = '/'), 'export')
+  savePlpShareable(result = plpResult, saveDirectory = file.path(saveDirectory))
+  saveZip <- paste0(saveLoc, "/", "model-",gsub("^.*/", "", saveLoc), ".zip")
+  setwd(saveDirectory)
+
+  zipFiles <- list.files(path = saveDirectory, pattern = ".")
+  zip(zipfile = saveZip, files = zipFiles)
+  ParallelLogger::logInfo(paste0('Zip saved to: ', saveZip))
+  
+  ## Generate some zips :)
+  #for (val in c(1:10)) {
+  #  source(file = "C:/[ DEV ]/PredictionLibraryApp/PredictionLibraryR/extras/ProcessUpload.R")
+  #}
 } else {
   ParallelLogger::logInfo(paste0('Reading model into runPlp object...'))
   
