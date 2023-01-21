@@ -16,175 +16,231 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-
-#' Create setting for RIPPER using JRip (Weka) implementation
-#'
-#' @param variableNumer       An option to add a seed when training the final model
-#'
-#' @examples
-#' model.ripper <- setRIPPER(variableNumber=2000)
+#' Create setting for RIPPER
+#' @param variableSelection 
+#' @param variableNumber 
 #'
 #' @export
-setRIPPER <- function(variableNumber=2000){
+setRIPPER <- function( # TODO: check default settings
+  variableSelection = PatientLevelPrediction::setUnivariateSelection(),
+  variableNumber = 10,
+  saveDirectory = getwd()){
   
-  # check input
-  if(length(variableNumber)!=1)
-    stop('Can only currently enter a single value for variableNumber')
+  # TODO: check input
   
-  if(!class(variableNumber) %in% c("numeric", "integer"))
-    stop('Can incorrect class for variableNumber - must be numeric')
+  param <- list(variableSelection = variableSelection,
+                variableNumber = variableNumber,
+                saveDirectory = saveDirectory)
   
-  result <- list(model='fitRIPPER', param= list('variableNumber'=variableNumber), name='RIPPER')
+  attr(param, 'settings') <- list(
+    modelType = 'ripper',
+    modelName = 'RIPPER'
+  )
+  
+  attr(param, 'modelType') <- 'binary'
+  attr(param, 'saveType') <- 'RtoJson'
+  
+  result <- list(
+    fitFunction = "fitRIPPER",
+    param = param
+  )
   class(result) <- 'modelSettings' 
   
   return(result)
 }
 
-
-#RIPPER
-fitRIPPER <- function(population, plpData, param, quiet=F,
-                      outcomeId, cohortId, ...){
+#' @export
+fitRIPPER <- function(trainData,
+                      modelSettings,
+                      search = 'none',
+                      analysisId,
+                      ...) {
   
-  # check plpData is libsvm format or convert if needed
-  if (!FeatureExtraction::isCovariateData(plpData$covariateData)){
+  param <- modelSettings$param
+  
+  # check plpData is coo format:
+  if (!FeatureExtraction::isCovariateData(trainData$covariateData)){
     stop("Needs correct covariateData")
   }
   
-  if(colnames(population)[ncol(population)]!='indexes'){
-    warning('indexes column not present as last column - setting all index to 1')
-    population$indexes <- rep(1, nrow(population))
-  }
-  
-  # check logger
-  if(length(ParallelLogger::getLoggers())==0){
-    logger <- ParallelLogger::createLogger(name = "SIMPLE",
-                                           threshold = "INFO",
-                                           appenders = list(ParallelLogger::createConsoleAppender(layout = ParallelLogger::layoutTimestamp)))
-    ParallelLogger::registerLogger(logger)
-  }
-  
-  if(!quiet)
-    ParallelLogger::logTrace('Training RIPPER model')
+  settings <- attr(param, 'settings')
   
   start <- Sys.time()
   
-  # make sure population is ordered?
-  prediction <- population
-  population$rowIdPython <- population$rowId - 1  # -1 to account for python/r index difference
-  pPopulation <- as.matrix(population[,c('rowIdPython','outcomeCount','indexes')])
+  denseData <- convertToDenseData(trainData, param$variableSelection, search, analysisId, param$saveDirectory)
   
-  covariateRef <- as.data.frame(plpData$covariateData$covariateRef)
-  
-  # convert plpData in coo to python:
-  x <- toSparseM(plpData, population, map = NULL)
-  
-  # save the model to outLoc TODO: make this an input or temp location?
-  outLoc <- createTempModelLoc()
-  # clear the existing model pickles
-  for(file in dir(outLoc))
-    file.remove(file.path(outLoc,file))
-  
-  # then run standard python code
-  e <- environment()
-  reticulate::source_python(system.file(package='PatientLevelPrediction','python','featureSelection.py'), envir = e)
-  pdata <- reticulate::r_to_py(x$data)
-  
-  # initial variable selection
-  selection <- univariate_feature_selection(population=pPopulation, 
-                                            plpData=pdata, 
-                                            variableNumber = as.integer(param$variableNumber),
-                                            quiet = quiet)
-  
-  pred <- as.data.frame(selection[[3]])
-  colnames(pred) <- c('rowId','outcomeCount','indexes') # todo: add last column value
-  attr(pred, "metaData") <- list(predictionType="binary")
-  
-  # add 1 to rowId from python:
-  pred$rowId <- pred$rowId+1
-  pred$value <- NA
-  
-  var_sel <- as.data.frame(cbind(selection[[2]],selection[[1]]))
-  var_sel <- as.data.frame(sapply(var_sel, function(col) factor(col, levels = c(0,1))), stringsAsFactors = TRUE)
-  colnames(var_sel)[1] <- "y"
+  # convert to factors (JRip cannot handle numeric features)
+  denseData <- as.data.frame(sapply(denseData, function(col) factor(col, levels = c(0,1))), stringsAsFactors = TRUE)
   
   # train model
-  # JRip cannot handle numeric class
-  library('RWeka')
-  modelTrained <- JRip(y ~ . , data = var_sel)
+  fit <- tryCatch({
+    ParallelLogger::logInfo('Running RIPPER')
+    JRip(outcomeCount ~ . , data = denseData)
+  },
+  finally = ParallelLogger::logInfo('Done.')
+  )
   
-  # cross validation
-  for(i in 1:max(population$indexes)) {
-    hold_out <- which(population[population$indexes > 0,]$indexes==i)
+  ParallelLogger::logTrace('Returned from fitting RIPPER')
+  comp <- Sys.time() - start
+  
+  ParallelLogger::logTrace('Getting variable importance')
+  # Get the features selected using RIPPER
+  featureNames <- colnames(denseData)[-1]
+  varImp <- data.frame(
+    covariateId = as.double(featureNames),
+    value = sapply(featureNames, function(f) ifelse(grepl(f, fit$classifier$toString()), 1, 0))
+  )
+  
+  variableImportance <- data.frame(
+    covariateId = varImp$covariateId,
+    covariateValue = varImp$value
+  )
+  
+  # variableImportance <- trainData$covariateData$covariateRef %>% 
+  #   dplyr::collect()  %>%
+  #   dplyr::left_join(varImp, by = 'covariateId') %>%
+  #   # dplyr::mutate(covariateValue =.data$value) %>%
+  #   dplyr::mutate(covariateValue = ifelse(is.na(.data$value), 0, .data$value)) %>%
+  #   dplyr::select(-.data$value) %>%
+  #   dplyr::arrange(-abs(.data$covariateValue)) %>%
+  #   dplyr::collect()
+  
+  modelTrained <-  list(fit = fit,
+                        coefficients = varImp$covariateId[varImp$value==1])
+  
+  # Getting predictions on train set:
+  tempModel <- list(model = modelTrained)
+  attr(tempModel, "modelType") <- attr(param, 'modelType')
+  prediction <- predictRIPPER(
+    plpModel = tempModel,
+    cohort = trainData$labels, 
+    data = trainData
+  )
+  prediction$evaluationType <- 'Train'
+  
+  # TODO: save these models for later
+  # How to evaluate this for test case? Use predict?
+  
+  # cross-validation
+  # for(i in 1:max(population$indexes)) {
+  #   hold_out <- which(population[population$indexes > 0,]$indexes==i)
+  # 
+  #   subset_fit <- Explore::trainExplore(output_path = param$output_path, train_data = var_sel[-hold_out,], ClassFeature = "'y'", PositiveClass = 1,
+  #                                       StartRulelength = param$start_rule_length, EndRulelength = param$end_rule_length,
+  #                                       FeatureInclude = param$feature_include, Specificity = param$specificity)
+  # 
+  #   # print model
+  #   print(subset_fit)
+  # 
+  #   subset_predict <- as.numeric(Explore::predictExplore(model = subset_fit, test_data = var_sel[hold_out,]))
+  #   pred$value[hold_out] <- subset_predict
+  # 
+  #   auc <- aucWithoutCi(subset_predict, pred$outcomeCount[pred$rowId %in% hold_out])
+  #   writeLines(paste0('Model obtained CV AUC of ', auc, ' in fold ', i))
+  # }
+  # 
+  # auc <- computeAuc(pred)
+  # writeLines(paste0('Model obtained CV AUC of ', auc))
+  
+  result <- list(
+    model = modelTrained,
     
-    subset_fit <- JRip(y ~ . , data = var_sel[-hold_out,])
+    preprocessing = list(
+      featureEngineering = attr(trainData, "metaData")$featureEngineering,#learned mapping
+      tidyCovariates = attr(trainData$covariateData, "metaData")$tidyCovariateDataSettings,  #learned mapping
+      requireDenseMatrix = F
+    ),
     
-    # print model
-    print(subset_fit) 
+    prediction = prediction,
     
-    subset_predict <- as.numeric(predict(subset_fit, newdata = var_sel[hold_out,])==1)
-    pred$value[hold_out] <- subset_predict
+    modelDesign = PatientLevelPrediction::createModelDesign(
+      targetId = attr(trainData, "metaData")$targetId, # added
+      outcomeId = attr(trainData, "metaData")$outcomeId, # added
+      restrictPlpDataSettings = attr(trainData, "metaData")$restrictPlpDataSettings, # made this restrictPlpDataSettings
+      covariateSettings = attr(trainData, "metaData")$covariateSettings,
+      populationSettings = attr(trainData, "metaData")$populationSettings, 
+      featureEngineeringSettings = attr(trainData, "metaData")$featureEngineeringSettings,
+      preprocessSettings = attr(trainData$covariateData, "metaData")$preprocessSettings,
+      modelSettings = modelSettings, # modified
+      splitSettings = attr(trainData, "metaData")$splitSettings,
+      sampleSettings = attr(trainData, "metaData")$sampleSettings
+    ),
     
-    auc <- aucWithoutCi(subset_predict, pred$outcomeCount[pred$rowId %in% hold_out])
-    writeLines(paste0('Model obtained CV AUC of ', auc, ' in fold ', i))
-  }
-  
-  auc <- computeAuc(pred)
-  writeLines(paste0('Model obtained CV AUC of ', auc))
-  
-  # get prediction on test set:
-  ParallelLogger::logInfo('Getting predictions on train set')
-  prediction <- merge(prediction, pred[,c('rowId', 'value')], by='rowId')
-  
-  # get the univeriate selected features (ripper requires dense so need feat sel)
-  varImp <- selection[[4]]
-  varImp[is.na(varImp)] <- 0
-  if(mean(varImp)==0)
-    stop('No important variables - seems to be an issue with the data')
-  
-  topN <- varImp[order(-varImp)][param$variableNumber]
-  inc <- which(varImp>=topN, arr.ind=T)
-  
-  incs <- rep(0, nrow(covariateRef))
-  incs[inc] <- 1
-  covariateRef$included <- incs
-  covariateRef$covariateValue <- varImp
-  
-  comp <- start-Sys.time()
-  
-  result <- list(model = modelTrained,
-                 modelSettings = list(model='RIPPER', modelParameters=param),
-                 trainCVAuc = auc,
-                 hyperParamSearch = NULL,
-                 metaData = plpData$metaData,
-                 populationSettings = attr(population, 'metaData'),
-                 outcomeId=outcomeId,
-                 cohortId=cohortId,
-                 varImp = covariateRef,
-                 trainingTime=comp,
-                 dense=1,
-                 covariateMap=x$map,
-                 predictionTrain = prediction
+    trainDetails = list(
+      analysisId = analysisId, 
+      analysisSource = '', #TODO: add from model
+      developmentDatabase = attr(trainData, "metaData")$cdmDatabaseSchema,
+      attrition = attr(trainData, "metaData")$attrition, 
+      trainingTime =  paste(as.character(abs(comp)), attr(comp,'units')),
+      trainingDate = Sys.Date(),
+      modelName = settings$modelType,
+      finalModelParameters = list() #TODO: add parameters
+      # hyperParamSearch = cvPerFold
+    ),
+    
+    covariateImportance = variableImportance
   )
   
   class(result) <- 'plpModel'
-  attr(result, 'type') <- 'ripper'
-  attr(result, 'predictionType') <- 'binary'
+  attr(result, 'predictionFunction') <- 'predictRIPPER'
+  attr(result, 'modelType') <- attr(param, 'modelType')
+  attr(result, 'saveType') <- attr(param, 'saveType')
   return(result)
 }
 
+convertToDenseData <- function(trainData, modelSettings, search, analysisId, saveDirectory) {
+  
+  # Apply pre-variable selection
+  if (!is.null(modelSettings)) {
+    # Adjust settings to return data
+    modelSettings$param$param$returnData <- TRUE
+    modelSettings$param$param$saveDirectory <- stringr::str_remove(saveDirectory, analysisId)
+    
+    # TODO: always if # covariate > ?
+    fun <- eval(parse(text = modelSettings$fitFunction))
+    args <- list(
+      trainData = trainData,
+      modelSettings,
+      search = search,
+      analysisId = analysisId
+    )
+    trainData <- do.call(fun, args)
+  }
+  
+  # Convert to dense covariates
+  covariates <- as.data.frame(trainData$covariateData$covariates)
+  denseData <- reshape2::dcast(covariates, rowId ~ covariateId, value.var = 'covariateValue', fill = 0)
+  
+  denseData <- merge(trainData$labels[c("rowId", "outcomeCount")], denseData, by = 'rowId', all.x = TRUE)
+  denseData[is.na(denseData)] <- 0
+  denseData$rowId <- NULL
+  
+  return(denseData)
+}
 
-predictRIPPER <- function(plpModel,population, plpData, ...){ 
-  result <- toSparseM(plpData,population,map=plpModel$covariateMap,)
-  data <- result$data[population$rowId,]
-  data <- as.data.frame(as.matrix(data)) # TODO: make this more efficient?
+predictRIPPER <- function(plpModel, data, cohort) {
   
-  # TODO: filter out covariates?
-  prediction <- data.frame(rowId=population$rowId,
-                           value=as.numeric(stats::predict(plpModel$model, data)==1))
+  varSelection <- names(attr(plpModel$model$fit$terms, "dataClasses"))
   
-  prediction <- merge(population, prediction, by='rowId', all.x=T, fill=0)
-  prediction <- prediction[,colnames(prediction)%in%c('rowId','subjectId','cohortStartDate','outcomeCount','indexes', 'value')] # need to fix no index issue
-  attr(prediction, "metaData") <- list(predictionType = "binary") 
+  # Convert to dense covariates
+  covariates <- as.data.frame(data$covariateData$covariates)
+  covariates <- covariates[covariates$covariateId %in% varSelection,] # Select only covariates included in model
+  denseData <- reshape2::dcast(covariates, rowId ~ covariateId, value.var = 'covariateValue', fill = 0)
+  
+  # Check if all covariates in data (in case no observations in test set with record)
+  addCols <- varSelection[!(varSelection %in% c(colnames(denseData), "outcomeCount"))]
+  denseData[addCols] <- 0
+  
+  denseData <- merge(cohort[c("rowId", "outcomeCount")], denseData, by = 'rowId', all.x = TRUE)
+  denseData[is.na(denseData)] <- 0
+  denseData[c("rowId", "outcomeCount")] <- NULL
+  
+  prediction <- data.frame(rowId=cohort$rowId, value=as.numeric(stats::predict(plpModel$model$fit, denseData)==1))
+  
+  # return the cohorts as a data frame with the prediction added as 
+  # a new column with the column name 'value'
+  prediction <- merge(cohort, prediction, by='rowId', all.x=T)
+  attr(prediction, "metaData")$modelType <-  plpModel$model$modelType
+  
   return(prediction)
 }
