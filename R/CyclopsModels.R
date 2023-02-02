@@ -144,7 +144,7 @@ fitCyclopsModel <- function(
   ParallelLogger::logTrace('Getting variable importance')
   variableImportance <- getVariableImportance(modelTrained, trainData)
   
-  #get prediction on test set:
+  #get prediction on train set:
   ParallelLogger::logTrace('Getting predictions on train set')
   tempModel <- list(model = modelTrained)
   attr(tempModel, "modelType") <- attr(param, 'modelType')
@@ -421,6 +421,10 @@ getCV <- function(
   priorType
 )
 {
+  if (is.null(priorType)) {
+    return(NULL)
+  }
+  
   fixed_prior <- Cyclops::createPrior(priorType = priorType, 
                                       variance = cvVariance, 
                                       useCrossValidation = FALSE)

@@ -83,6 +83,8 @@ fitRIPPER <- function(trainData,
   ParallelLogger::logTrace('Returned from fitting RIPPER')
   comp <- Sys.time() - start
   
+  ParallelLogger::logInfo(paste0("RIPPER rule: ", fit$classifier$toString()))
+  
   ParallelLogger::logTrace('Getting variable importance')
   # Get the features selected using RIPPER
   featureNames <- colnames(denseData)[-1]

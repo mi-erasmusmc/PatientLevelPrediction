@@ -10,7 +10,7 @@
 #
 #     http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
+# Unless required by applicable v or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
@@ -36,7 +36,7 @@
 #' @export
 setExplore <- function( # TODO: check default settings
   variableSelection = PatientLevelPrediction::setUnivariateSelection(),
-  variableNumber = 10,
+  variableNumber = 10, # TODO: can be removed???
   startRulelength = 1,
   endRulelength = 3,
   operatorMethod = "EXHAUSTIVE",
@@ -51,6 +51,7 @@ setExplore <- function( # TODO: check default settings
   branchBound = "yes",
   parallel = "no",
   aucCurve = FALSE,
+  sort_by = "none",
   saveDirectory = getwd()){
   
   # TODO: check input
@@ -70,6 +71,7 @@ setExplore <- function( # TODO: check default settings
                 branchBound = branchBound,
                 parallel = parallel,
                 aucCurve = aucCurve,
+                sort_by = sort_by,
                 saveDirectory = saveDirectory)
   
   attr(param, 'settings') <- list(
@@ -108,6 +110,8 @@ fitExplore <- function(trainData,
   start <- Sys.time()
   
   exploreData <- convertToExploreData(trainData, param$variableSelection, search, analysisId, param$saveDirectory)
+  
+  exploreData <- sortData(exploreData, sort_by = param$sort_by)
   
   # train model
   fit <- tryCatch({
@@ -166,7 +170,7 @@ fitExplore <- function(trainData,
   prediction$evaluationType <- 'Train'
   
   # Generate models for AUC curve:
-  constraints <- seq(0.05,0.95,0.1)
+  constraints <- c(seq(0.05,0.65,0.1), seq(0.75,0.97,0.02))
   
   if (param$aucCurve) {
     models <- tryCatch({
@@ -265,6 +269,7 @@ fitExplore <- function(trainData,
   return(result)
 }
 
+# TODO: change to convertToDenseData?
 convertToExploreData <- function(trainData, modelSettings, search, analysisId, saveDirectory) {
   
   # Apply pre-variable selection
@@ -293,6 +298,35 @@ convertToExploreData <- function(trainData, modelSettings, search, analysisId, s
   exploreData$rowId <- NULL
   
   return(exploreData)
+}
+
+
+sortData <- function(exploreData, sort_by = "none", corMethod = "pearson") {
+  
+  if (sort_by == "none") {
+    return(exploreData)
+  } else if (sort_by == "random") {
+    
+    # Random shuffle of covariates (except outcomeCount)
+    shuffle <- sample(2:ncol(exploreData), replace = FALSE)
+    
+    # Order randomly
+    exploreData <-  exploreData[c(1, shuffle)]
+    
+    return(exploreData)
+  } else if (sort_by == "correlation") {
+    
+    # Compute univariate correlation
+    correlation <- sapply(2:ncol(exploreData), function(covId) {
+      cor(exploreData[covId], exploreData$outcomeCount, method = corMethod)
+    })
+    
+    # Order from high to low absolute correlation
+    exploreData <-  exploreData[c(1, order(abs(correlation), decreasing = TRUE) + 1)]
+    
+    return(exploreData)
+  }
+  
 }
 
 predictExplore <- function(plpModel, data, cohort) {

@@ -349,6 +349,10 @@ gridCvPython <- function(
   # feature importance
   variableImportance <- tryCatch({model$feature_importances_}, error = function(e){ParallelLogger::logInfo(e);return(rep(1,ncol(matrixData)))})
 
+  if (pythonClassifier == "DecisionTreeClassifier") {
+    ParallelLogger::logInfo(paste0("Nodes: ", model$tree_$node_count))
+  }
+  
   return(
     list(
       prediction = prediction,
