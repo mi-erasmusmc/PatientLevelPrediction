@@ -13,7 +13,7 @@ Sys.setenv("PROJECT_FOLDER" = "C:/[ DEV ]/PredictionLibraryApp/PredictionLibrary
 myArgs = commandArgs(trailingOnly=TRUE)
 myDirectory = gsub("\\\\", "/", myArgs)
 hasDirectory <- !rlang::is_empty(myDirectory)
-resetDatabase = T
+resetDatabase = F
 saveLoc <- NULL
 
 if (hasDirectory) {
@@ -143,11 +143,6 @@ if (!hasDirectory) {
   zipFiles <- list.files(path = saveDirectory, pattern = ".")
   zip(zipfile = saveZip, files = zipFiles)
   ParallelLogger::logInfo(paste0('Zip saved to: ', saveZip))
-  
-  ## Generate some zips :)
-  #for (val in c(1:10)) {
-  #  source(file = "C:/[ DEV ]/PredictionLibraryApp/PredictionLibraryR/extras/ProcessUpload.R")
-  #}
 } else {
   ParallelLogger::logInfo(paste0('Reading model into runPlp object...'))
   
