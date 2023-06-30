@@ -99,7 +99,7 @@ test_that("test createDatabaseDetails works", {
 test_that("database creation", {
   skip_if(Sys.getenv('CI') != 'true', 'not run locally')
   createPlpResultTables(
-    conn = conn, 
+    connectionDetails = connectionRedshift, 
     resultSchema = ohdsiDatabaseSchema, 
     targetDialect = targetDialect,
     deleteTables = T, 
@@ -107,9 +107,12 @@ test_that("database creation", {
     tablePrefix = appendRandom('test')
   )
   
-  tableNames <- DatabaseConnector::getTableNames(connection = conn, databaseSchema = ohdsiDatabaseSchema)
   # check the results table is created
-  testthat::expect_true(paste0(toupper(appendRandom('test')),'_PERFORMANCES') %in% tableNames)
+  testthat::expect_true(DatabaseConnector::existsTable(
+    connection = conn, 
+    databaseSchema = ohdsiDatabaseSchema,
+    tableName = paste0(appendRandom('test'),'_PERFORMANCES')
+  ))
 
 })
 
@@ -136,7 +139,7 @@ test_that("results uploaded to database", {
   
   # add results:
   addMultipleRunPlpToDatabase(
-    conn = conn, 
+    connectionDetails  = connectionRedshift, 
     databaseSchemaSettings = createDatabaseSchemaSettings(
       resultSchema = ohdsiDatabaseSchema, 
       tablePrefix = appendRandom('test'),
@@ -164,11 +167,10 @@ test_that("results uploaded to database", {
 
 })
 
-
 test_that("database deletion", {
   skip_if(Sys.getenv('CI') != 'true', 'not run locally')
   createPlpResultTables(
-    conn = conn, 
+    connectionDetails = connectionRedshift, 
     resultSchema = ohdsiDatabaseSchema, 
     targetDialect = targetDialect,
     deleteTables = T, 
@@ -176,11 +178,13 @@ test_that("database deletion", {
     tablePrefix = appendRandom('test')
   )
   
-  tableNames <- DatabaseConnector::getTableNames(connection = conn, databaseSchema = ohdsiDatabaseSchema)
   # check the results table is then deleted
-  testthat::expect_false(paste0(toupper(appendRandom('test')),'_PERFORMANCES') %in% tableNames)
-  
-  
+  testthat::expect_false(DatabaseConnector::existsTable(
+    connection = conn, 
+    databaseSchema = ohdsiDatabaseSchema,
+    tableName = paste0(appendRandom('test'),'_PERFORMANCES')
+  ))
+
 })
 
 # disconnect
@@ -295,7 +299,6 @@ DatabaseConnector::disconnect(conn)
 # importFromCsv test here as can use previous csv saving
 test_that("import from csv", {
   
-  
   cohortDef <- extractCohortDefinitionsCSV(
     csvFolder = file.path(saveLoc, 'csvFolder')
   )
@@ -364,11 +367,11 @@ test_that("import from csv", {
   if(!dir.exists(file.path(tempdir(), 'newCsvDatabase'))){
     dir.create(file.path(tempdir(), 'newCsvDatabase'), recursive = T)
   }
-  newResultConn <- DatabaseConnector::createConnectionDetails(
+  newResultConnDetails <- DatabaseConnector::createConnectionDetails(
     dbms = 'sqlite', 
     server = file.path(csvServerLoc,'newCsv.sqlite')
     )
-  newResultConn <- DatabaseConnector::connect(newResultConn)
+  newResultConn <- DatabaseConnector::connect(newResultConnDetails)
   csvDatabaseSchemaSettings <-  PatientLevelPrediction::createDatabaseSchemaSettings(
     resultSchema = 'main', 
     tablePrefix = '', 
@@ -378,7 +381,7 @@ test_that("import from csv", {
   
   # create empty tables to insert csv into
   PatientLevelPrediction::createPlpResultTables(
-    conn = newResultConn , 
+    connectionDetails = newResultConnDetails, 
     targetDialect = 'sqlite', 
     resultSchema = 'main', 
     createTables = T, 
@@ -389,7 +392,7 @@ test_that("import from csv", {
     
   res <- insertCsvToDatabase(
     csvFolder = file.path(saveLoc, 'csvFolder'),
-    conn = newResultConn,
+    connectionDetails = newResultConnDetails,
     databaseSchemaSettings = csvDatabaseSchemaSettings,
     modelSaveLocation = file.path(csvServerLoc,'models'),
     csvTableAppend = ''
@@ -401,5 +404,53 @@ test_that("import from csv", {
   
 })
 
+
+# new - check null model just reports message
+test_that("message if model is null", {
+  
+  model2 <- list(noModel = T)
+  attr(model2, "predictionFunction") <- 'noModel'
+  attr(model2, "saveType") <- 'RtoJson'
+  class(model2) <- 'plpModel'
+  
+  plpResult2 <- plpResult
+  plpResult2$model <- model2
+  
+  savePlpResult(plpResult2, file.path(tempdir(), 'null_model', 'Analysis_1', 'plpResult'))
+  
+  nullModelServerLoc <- file.path(tempdir(), 'nullModelDatabase')
+  if(!dir.exists(file.path(tempdir(), 'nullModelDatabase'))){
+    dir.create(file.path(tempdir(), 'nullModelDatabase'), recursive = T)
+  }
+  nullModelResultConnDetails <- DatabaseConnector::createConnectionDetails(
+    dbms = 'sqlite', 
+    server = file.path(nullModelServerLoc,'sqlite.sqlite')
+  )
+  nullModelDatabaseSchemaSettings <-  createDatabaseSchemaSettings(
+    resultSchema = 'main', 
+    tablePrefix = '', 
+    targetDialect = 'sqlite', 
+    tempEmulationSchema = NULL
+  )
+  
+  createPlpResultTables(
+    connectionDetails = nullModelResultConnDetails,
+    targetDialect = 'sqlite',
+    resultSchema = 'main', 
+    deleteTables = T, 
+    createTables = T,
+    tablePrefix = ''
+  )
+
+  testthat::expect_message(
+    addMultipleRunPlpToDatabase(
+      connectionDetails = nullModelResultConnDetails, 
+      databaseSchemaSettings = nullModelDatabaseSchemaSettings,
+      resultLocation = file.path(tempdir(), 'null_model'), 
+      modelSaveLocation = file.path(tempdir(), 'null_model', 'models')
+    )
+  )
+  
+})
 
 

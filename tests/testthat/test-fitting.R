@@ -18,7 +18,6 @@ library("testthat")
 
 context("Fitting")
 
-trainData <- createTrainData(plpData, population)
 modelSettings <- setLassoLogisticRegression()
 
 test_that("fitPlp", {
@@ -27,7 +26,8 @@ plpModel <- fitPlp(
   trainData = trainData,   
   modelSettings = modelSettings,
   search = "grid", 
-  analysisId = 'fitting'
+  analysisId = 'fitting',
+  analysisPath = tempdir()
   )
 
 expect_is(plpModel, 'plpModel')
@@ -39,7 +39,8 @@ test_that("fitPlp input errors", {
   expect_error(
     fitPlp(
       trainData = trainData,   
-      modelSettings = modelSettings
+      modelSettings = modelSettings,
+      analysisPath = tempDir()
     )
   )
   
@@ -47,7 +48,8 @@ test_that("fitPlp input errors", {
     fitPlp(
       trainData = list(covariateData = NULL),   
       modelSettings = modelSettings,
-      analysisId = 'fitting'
+      analysisId = 'fitting',
+      analysisPath = tempDir()
     )
   )
   
@@ -55,6 +57,15 @@ test_that("fitPlp input errors", {
     fitPlp(
       trainData = trainData,   
       modelSettings = NULL,
+      analysisId = 'fitting',
+      analysisPath = tempDir()
+    )
+  )
+  
+  expect_error(
+    fitPlp(
+      trainData = trainData,   
+      modelSettings = modelSettings,
       analysisId = 'fitting'
     )
   )
