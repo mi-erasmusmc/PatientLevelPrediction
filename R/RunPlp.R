@@ -379,7 +379,8 @@ runPlp <- function(
     settings <- list(
       trainData = data$Train, 
       modelSettings = modelSettings,
-      analysisId = analysisId
+      analysisId = analysisId,
+      analysisPath = analysisPath
     )
     
     ParallelLogger::logInfo(sprintf('Training %s model',settings$modelSettings$name))  
@@ -453,23 +454,24 @@ runPlp <- function(
     
     variableImportance <- plpData$covariateData$covariateRef %>% 
       dplyr::mutate(covariateValue = 0) %>% 
-      dplyr::select(.data$covariateId, .data$covariateValue) %>% 
+      dplyr::select("covariateId", "covariateValue") %>% 
       dplyr::collect()
     if(!is.null(model)){
       if(!is.null(model$covariateImportance)){
-        variableImportance <- model$covariateImportance %>% dplyr::select(.data$covariateId, .data$covariateValue)
+        variableImportance <- model$covariateImportance %>% 
+          dplyr::select("covariateId", "covariateValue")
       }
     }
     
     covariateSummaryResult <- do.call(covariateSummary,   
-                                      list(
-                                        covariateData = plpData$covariateData,
-                                        cohort = population %>% dplyr::select(.data$rowId),
-                                        labels = population %>% dplyr::select(.data$rowId, .data$outcomeCount), 
-                                        strata = strata,
-                                        variableImportance = variableImportance,
-                                        featureEngineering = NULL
-                                      )
+      list(
+        covariateData = plpData$covariateData,
+        cohort = population %>% dplyr::select("rowId"),
+        labels = population %>% dplyr::select("rowId", "outcomeCount"), 
+        strata = strata,
+        variableImportance = variableImportance,
+        featureEngineering = NULL
+        )
     )
     
   }

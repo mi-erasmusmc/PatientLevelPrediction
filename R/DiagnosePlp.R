@@ -93,12 +93,12 @@ diagnoseMultiplePlp <- function(
   # save the settings: TODO fix
   utils::write.csv(
     x = settingstable %>% dplyr::select(
-      .data$analysisId,
-      .data$targetId, 
-      .data$targetName,
-      .data$outcomeId, 
-      .data$outcomeName,
-      .data$dataLocation
+      "analysisId",
+      "targetId", 
+      "targetName",
+      "outcomeId", 
+      "outcomeName",
+      "dataLocation"
     ), 
     file.path(saveDirectory,'settings.csv'), 
     row.names = F
@@ -528,6 +528,23 @@ probastParticipants <- function(
 }
 
 
+getMaxEndDaysFromCovariates <- function(covariateSettings){
+  
+  if(inherits(covariateSettings, 'covariateSettings')){
+    covariateSettings <- list(covariateSettings)
+  }
+  
+  vals <- unlist(lapply(covariateSettings, function(x){x$endDays}))
+  
+  if(length(vals) == 0){
+    return(0)
+  } else{
+    return(max(vals))
+  }
+}
+
+
+
 probastPredictors <- function(
   plpData, 
   outcomeId,
@@ -549,7 +566,7 @@ probastPredictors <- function(
   # covariate + outcome correlation; km of outcome (close to index or not)?
   probastId <- '2.2'
   if(populationSettings$startAnchor == 'cohort start'){
-    if(populationSettings$riskWindowStart > plpData$metaData$covariateSettings$endDays){
+    if(populationSettings$riskWindowStart > getMaxEndDaysFromCovariates(plpData$metaData$covariateSettings)){
       diagnosticAggregate <- rbind(
         diagnosticAggregate,
         c(probastId, 'Pass')
@@ -597,7 +614,7 @@ probastPredictors <- function(
         population %>% 
           dplyr::filter(.data$survivalTime >= x) %>%
           dplyr::tally() %>% 
-          dplyr::select(.data$n)
+          dplyr::select("n")
       }
     )
   )
@@ -618,7 +635,7 @@ probastPredictors <- function(
         populationFull %>% 
           dplyr::filter(.data$survivalTime >= x) %>%
           dplyr::tally() %>% 
-          dplyr::select(.data$n)
+          dplyr::select("n")
       }
     )
   )
@@ -632,9 +649,9 @@ probastPredictors <- function(
   # 2.3.1
   # cov end_date <=0
   probastId <- '2.3'
-  if(plpData$metaData$covariateSettings$endDays <= 0){
+  if(getMaxEndDaysFromCovariates(plpData$metaData$covariateSettings) <= 0){
     
-    if(plpData$metaData$covariateSettings$endDays < 0){
+    if(getMaxEndDaysFromCovariates(plpData$metaData$covariateSettings) < 0){
       diagnosticAggregate <- rbind(
         diagnosticAggregate,
         c(probastId, 'Pass')
@@ -692,7 +709,7 @@ probastOutcome <- function(
   # 3.6 - check tar after covariate end_days
   probastId <- '3.6'
   if(populationSettings$startAnchor == 'cohort start'){
-    if(populationSettings$riskWindowStart > plpData$metaData$covariateSettings$endDays){
+    if(populationSettings$riskWindowStart > getMaxEndDaysFromCovariates(plpData$metaData$covariateSettings)){
       diagnosticAggregate <- rbind(
         diagnosticAggregate,
         c(probastId, 'Pass')
@@ -789,7 +806,7 @@ getOutcomeSummary <- function(
       aggregation = 'age',
       inputType = type
     ) %>% 
-    dplyr::rename(xvalue = .data$ageYear)
+    dplyr::rename(xvalue = "ageYear")
   
   res[[2]] <-  population %>% 
     dplyr::group_by(.data$gender) %>%
@@ -799,7 +816,7 @@ getOutcomeSummary <- function(
       aggregation = 'gender',
       inputType = type
     )%>% 
-    dplyr::rename(xvalue = .data$gender)
+    dplyr::rename(xvalue = "gender")
   
   res[[3]] <- population %>% 
     dplyr::mutate(
@@ -812,7 +829,7 @@ getOutcomeSummary <- function(
       aggregation = 'year',
       inputType = type
     ) %>% 
-    dplyr::rename(xvalue = .data$year)
+    dplyr::rename(xvalue = "year")
   
   res[[4]] <- population %>% 
     dplyr::mutate(
@@ -825,7 +842,7 @@ getOutcomeSummary <- function(
       aggregation = 'month',
       inputType = type
     ) %>% 
-    dplyr::rename(xvalue = .data$year)
+    dplyr::rename(xvalue = "year")
   
   return(res)
 }
@@ -897,13 +914,13 @@ getDiagnostic <- function(
       dplyr::filter(.data$design == unique(diag$design)[1]) %>%
       dplyr::filter(.data$metric != 'N') %>%
       dplyr::arrange(.data$metric) %>%
-      dplyr::select(.data$value)
+      dplyr::select("value")
     , 
     diag %>% 
       dplyr::filter(.data$design == unique(diag$design)[2]) %>%
       dplyr::filter(.data$metric != 'N') %>%
       dplyr::arrange(.data$metric) %>%
-      dplyr::select(.data$value)
+      dplyr::select("value")
   )
   
   
