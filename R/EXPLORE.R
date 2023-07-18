@@ -50,7 +50,7 @@ setExplore <- function( # TODO: check default settings
   subsumption = "yes",
   branchBound = "yes",
   parallel = "no",
-  aucCurve = FALSE,
+  modelsCurve = FALSE,
   sort_by = "none",
   saveDirectory = getwd()){
   
@@ -70,7 +70,7 @@ setExplore <- function( # TODO: check default settings
                 subsumption = subsumption,
                 branchBound = branchBound,
                 parallel = parallel,
-                aucCurve = aucCurve,
+                modelsCurve = modelsCurve,
                 sort_by = sort_by,
                 saveDirectory = saveDirectory)
   
@@ -170,33 +170,17 @@ fitExplore <- function(trainData,
   prediction$evaluationType <- 'Train'
   
   # Generate models for AUC curve:
-  constraints <- c(seq(0.05,0.65,0.1), seq(0.75,0.97,0.02))
-  
-  if (param$aucCurve) {
-    models <- tryCatch({
-      ParallelLogger::logInfo('Running Explore for different sensitivities/specificities')
-      models <- sapply(constraints, function(constraint) {
-        print(paste0("Model for specificity: ", as.character(constraint)))
-        
-        # Fit EXPLORE
-        model <- Explore::trainExplore(output_path = file.path(param$saveDirectory, "Explore", "AUC_curve"), train_data = exploreData,
-                                       file_name = paste0("explore_specificity", as.character(constraint)),
-                                       ClassFeature = "'outcomeCount'", PositiveClass = 1,
-                                       StartRulelength = param$startRulelength, EndRulelength = param$endRulelength,
-                                       OperatorMethod = param$operatorMethod, CutoffMethod = param$cutoffMethod,
-                                       FeatureInclude = param$featureInclude, Maximize = "SENSITIVITY",
-                                       Accuracy = param$accuracy, Specificity = constraint,
-                                       Subsumption = param$subsumption, BranchBound = param$branchBound,
-                                       Parallel = param$parallel)
-        return(model)
-      })
-    },
-    finally = ParallelLogger::logInfo('Done.')
-    )
-    # Save result
-    modelTrained[["models_AUCcurve"]] <- models
-    # saveRDS(models, file = file.path(param$saveDirectory, "Explore", "models_AUCcurve"))
-    
+  if (param$modelsCurve) {
+    ParallelLogger::logInfo('Running Explore for different sensitivities/specificities')
+    modelTrained[["modelsCurve"]] <- Explore::modelsCurveExplore(output_path = file.path(param$saveDirectory, "Explore"), train_data = exploreData,
+                                                                 ClassFeature = "'outcomeCount'", PositiveClass = 1,
+                                                                 StartRulelength = param$startRulelength, EndRulelength = param$endRulelength, 
+                                                                 OperatorMethod = param$operatorMethod, CutoffMethod = param$cutoffMethod,
+                                                                 FeatureInclude = param$featureInclude, Maximize = param$maximize,
+                                                                 Accuracy = param$accuracy, Specificity = param$specificity,
+                                                                 Subsumption = param$subsumption, BranchBound = param$branchBound,
+                                                                 Parallel = param$parallel)
+    # saveRDS(models, file = file.path(param$saveDirectory, "Explore", "modelsCurve"))
   }
   
   # TODO: save these models for later
