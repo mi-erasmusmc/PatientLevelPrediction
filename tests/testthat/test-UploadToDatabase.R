@@ -19,7 +19,7 @@ library("testthat")
 context("UploadToDatabase")
 
 # only run this during CI
-if (Sys.getenv('CI') == 'true') {
+if (Sys.getenv('CI') == 'true' && Sys.getenv("GITHUB_REPOSITORY") == "ohdsi/PatientLevelPrediction") {
 cdmDatabaseSchema <- Sys.getenv("CDM5_POSTGRESQL_CDM_SCHEMA")
 ohdsiDatabaseSchema <- Sys.getenv("CDM5_POSTGRESQL_OHDSI_SCHEMA")
 connectionRedshift <- DatabaseConnector::createConnectionDetails(
