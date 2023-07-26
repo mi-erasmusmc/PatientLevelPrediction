@@ -16,7 +16,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+#' Selects features based on univariate statistics
+#' 
+#' @param corMethod which type of correlation to use, default `pearson`
+#' @param modelSettings settings of model to use in fit after selecting variables
+#' @param nVariables amount of variables to select, default `50`
+#'
 #' @export
 setUnivariateSelection <- function(modelSettings = PatientLevelPrediction::setLassoLogisticRegression(),
                                    corMethod = "pearson",
@@ -93,6 +98,14 @@ fitUnivariateSelection <- function(
   return(plpModel)
 }
 
+#' Selects features using stepwise selection
+#'
+#' @param modelSettings settings of model to use in fit after selecting variables
+#' @param selectMethod `backward` or `forward` selection
+#' @param nInitialVariables # of variables to select initially
+#' @param nVariables amount of variables to select, default `20`
+#' @param stepSize  How many variables to add/remove in each step
+#'
 #' @export
 setStepwiseSelection <- function(modelSettings,
                                  selectMethod = "backward",
