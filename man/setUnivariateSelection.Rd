@@ -13,7 +13,7 @@ setUnivariateSelection(
 \arguments{
 \item{modelSettings}{settings of model to use in fit after selecting variables}
 
-\item{corMethod}{which type of correlation to use, default `pearson`}
+\item{corMethod}{which type of correlation to use, `pearson`, `kendall` or `spearman`. default `pearson`}
 
 \item{nVariables}{amount of variables to select, default `50`}
 }
