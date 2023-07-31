@@ -19,7 +19,7 @@ library("testthat")
 context("UploadToDatabase")
 
 # only run this during CI
-if (Sys.getenv('CI') == 'true') {
+if (Sys.getenv('CI') == 'true' && Sys.getenv("GITHUB_REPOSITORY") == "ohdsi/PatientLevelPrediction") {
 cdmDatabaseSchema <- Sys.getenv("CDM5_POSTGRESQL_CDM_SCHEMA")
 ohdsiDatabaseSchema <- Sys.getenv("CDM5_POSTGRESQL_OHDSI_SCHEMA")
 connectionRedshift <- DatabaseConnector::createConnectionDetails(
@@ -38,7 +38,9 @@ appendRandom <- function(x, rand = randVar){
 
 }
 test_that("test createDatabaseSchemaSettings works", {
-  skip_if(Sys.getenv('CI') != 'true', 'not run locally')
+  skip_if(Sys.getenv('CI') != 'true' ||  
+            Sys.getenv("GITHUB_REPOSITORY") != "ohdsi/PatientLevelPrediction", 
+          'not run locally or in fork')
   databaseSchemaSettings <- createDatabaseSchemaSettings(
     resultSchema = ohdsiDatabaseSchema, 
     tablePrefix = '',
@@ -97,7 +99,9 @@ test_that("test createDatabaseDetails works", {
 
 
 test_that("database creation", {
-  skip_if(Sys.getenv('CI') != 'true', 'not run locally')
+  skip_if(Sys.getenv('CI') != 'true' ||  
+            Sys.getenv("GITHUB_REPOSITORY") != "ohdsi/PatientLevelPrediction", 
+          'not run locally or in fork')
   createPlpResultTables(
     connectionDetails = connectionRedshift, 
     resultSchema = ohdsiDatabaseSchema, 
@@ -118,7 +122,9 @@ test_that("database creation", {
 
 
 test_that("results uploaded to database", {
-  skip_if(Sys.getenv('CI') != 'true', 'not run locally')
+  skip_if(Sys.getenv('CI') != 'true' ||  
+            Sys.getenv("GITHUB_REPOSITORY") != "ohdsi/PatientLevelPrediction", 
+          'not run locally or in fork')
     resultsLoc <- file.path(saveLoc,'dbUp')
   
   plpResult$model$trainDetails$developmentDatabase <- 'test' 
@@ -168,7 +174,9 @@ test_that("results uploaded to database", {
 })
 
 test_that("database deletion", {
-  skip_if(Sys.getenv('CI') != 'true', 'not run locally')
+  skip_if(Sys.getenv('CI') != 'true' ||  
+            Sys.getenv("GITHUB_REPOSITORY") != "ohdsi/PatientLevelPrediction", 
+          'not run locally or in fork')
   createPlpResultTables(
     connectionDetails = connectionRedshift, 
     resultSchema = ohdsiDatabaseSchema, 
@@ -188,7 +196,7 @@ test_that("database deletion", {
 })
 
 # disconnect
-if (Sys.getenv('CI') == 'true') {
+if (Sys.getenv('CI') == 'true' && Sys.getenv("GITHUB_REPOSITORY") == "ohdsi/PatientLevelPrediction") {
   DatabaseConnector::disconnect(conn)
 }
 

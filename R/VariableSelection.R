@@ -16,13 +16,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+#' Selects features based on univariate statistics
+#' 
+#' @param corMethod which type of correlation to use, `pearson`, `kendall` or `spearman`. default `pearson`
+#' @param modelSettings settings of model to use in fit after selecting variables
+#' @param nVariables amount of variables to select, default `50`
+#'
 #' @export
 setUnivariateSelection <- function(modelSettings = PatientLevelPrediction::setLassoLogisticRegression(),
                                    corMethod = "pearson",
                                    nVariables = 50) { # TODO: set dynamic number based on elbow
   
   checkIsClass(nVariables, c('numeric','integer'))
+  if (!corMethod %in% c("pearson", "kendall", "spearman")) {
+    stop("corMethod needs to be either 'pearson', 'kendall' or 'spearman'")
+  }
   # TODO: add class checks input (modelSettings, corMethod)?
   
   param <- list(
@@ -60,7 +68,7 @@ fitUnivariateSelection <- function(
     
     # Select features based on univariate association with outcome
     correlation <- sapply(unique(covariates$covariateId), function(covId) {
-      cor(ifelse(outcomes$rowId %in% covariates$rowId[covariates$covariateId == covId], 1, 0), # TODO: can this be done smarter for sparse data
+      stats::cor(ifelse(outcomes$rowId %in% covariates$rowId[covariates$covariateId == covId], 1, 0), # TODO: can this be done smarter for sparse data
           outcomes$outcomeCount, 
           method = param$corMethod)
     })
@@ -93,6 +101,14 @@ fitUnivariateSelection <- function(
   return(plpModel)
 }
 
+#' Selects features using stepwise selection
+#'
+#' @param modelSettings settings of model to use in fit after selecting variables
+#' @param selectMethod `backward` or `forward` selection
+#' @param nInitialVariables # of variables to select initially
+#' @param nVariables amount of variables to select, default `20`
+#' @param stepSize  How many variables to add/remove in each step
+#'
 #' @export
 setStepwiseSelection <- function(modelSettings,
                                  selectMethod = "backward",
@@ -103,6 +119,9 @@ setStepwiseSelection <- function(modelSettings,
   checkIsClass(nInitialVariables, c('numeric','integer'))
   checkIsClass(nVariables, c('numeric','integer'))
   checkIsClass(stepSize, c('numeric','integer'))
+  if (!selectMethod %in% c("forward", "backward")) {
+    stop("selectMethod needs to be either 'forward' or 'backward")
+  }
   # TODO: add class checks input (modelSettings, selectMethod)?
   
   param <- list(
