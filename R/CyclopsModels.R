@@ -553,8 +553,9 @@ reparamTransferCoefs <- function(inCoefs) {
   return(coefs)
 }
 
-#' @details do simple CV to determine best penalty manually
+#' do simple CV to determine best penalty manually
 #' 
+#' @details
 #' Will try penalty `BIC` down to `penaltyRatio` * `BIC`. How many penalties
 #' to try is determined by `nTries.`
 #' 
