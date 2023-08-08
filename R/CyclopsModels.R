@@ -182,7 +182,6 @@ fitCyclopsModel <- function(
   prediction$evaluationType <- 'Train'
   
   # get cv AUC if exists
-  hyperParamSearch <- data.frame()
   if(!is.null(modelTrained$cv)){
     cvPrediction  <- do.call(rbind, lapply(modelTrained$cv, function(x){x$predCV}))
     cvPrediction$evaluationType <- 'CV'
