@@ -604,13 +604,13 @@ doCyclopsCVPenalty <- function(data,
     for (fold in seq_len(nFolds)) {
       
       trainData <- data$covariateData$covariates %>% 
-        dplyr::filter(index!=fold) %>% 
+        dplyr::filter(.data$index!=fold) %>% 
         dplyr::select(c("rowId", "covariateId", "covariateValue")) %>% 
         dplyr::collect()
       
       trainOutcomes <- data$covariateData$labels %>% 
-        dplyr::filter(index!=fold) %>%
-        dplyr::select(-index) %>%
+        dplyr::filter(.data$index!=fold) %>%
+        dplyr::select(-.data$index) %>%
         dplyr::collect()
       
       cyclopsData <- Cyclops::convertToCyclopsData(outcomes = trainOutcomes,
@@ -631,18 +631,18 @@ doCyclopsCVPenalty <- function(data,
       
       # predict on held out fold
       testData <- data$covariateData$covariates %>% 
-        dplyr::filter(index==fold) %>% 
+        dplyr::filter(.data$index==fold) %>% 
         dplyr::select(c("rowId", "covariateId", "covariateValue")) %>% 
-        dplyr::mutate(covariateId=as.numeric(covariateId)) %>%
+        dplyr::mutate(covariateId=as.numeric(.data$covariateId)) %>%
         dplyr::collect()
       
       testOutcomes <- data$covariateData$labels %>% 
-        dplyr::filter(index==fold) %>%
-        dplyr::select(-index) %>%
+        dplyr::filter(.data$index==fold) %>%
+        dplyr::select(-.data$index) %>%
         dplyr::collect()
       
-      preds <- predict(fit, newCovariates = testData,
-                       newOutcomes = testOutcomes)
+      preds <- stats::predict(fit, newCovariates = testData,
+                              newOutcomes = testOutcomes)
       
       # calculate performance
       prediction <- data.frame(outcomeCount=testOutcomes$outcomeCount,
