@@ -556,8 +556,9 @@ reparamTransferCoefs <- function(inCoefs) {
 #' do simple CV to determine best penalty manually
 #' 
 #' @details
-#' Will try penalty `BIC` down to `penaltyRatio` * `BIC`. How many penalties
-#' to try is determined by `nTries.`
+#' Will try a sequence of penalties from `BIC` down to `penaltyRatio` * `BIC`. How many penalties
+#' to try is determined by `nTries.` Will use cross-validation to determine optimal penalty
+#' based on `AUC`. 
 #' 
 #' @param data    The training data
 #' @param prior   Cyclops prior to use
@@ -602,6 +603,7 @@ doCyclopsCVPenalty <- function(data,
     hyperParamSearch[i, "Penalty"] <- penalties[i]
     prior$penalty <- penalties[i]
     
+    itStart <- Sys.time()
     for (fold in seq_len(nFolds)) {
       
       trainData <- data$covariateData$covariates %>% 
@@ -653,6 +655,10 @@ doCyclopsCVPenalty <- function(data,
       hyperParamSearch[i, paste0("Fold_", fold)] <- auc
     }
     hyperParamSearch[i, "avg_CV"] <- mean(as.numeric(hyperParamSearch[i, seq(3,3 + nFolds - 1)]))
+    itDelta <- Sys.time() - itStart
+    ParallelLogger::logInfo(paste0('Hyperparameter iteration no: ', i, ' Penalty: ', signif(prior$penalty, 3),
+                                   ' AUC: ', signif(hyperParamSearch[i, "avg_CV"], 3),
+                                   ' Iteration Time: ', signif(itDelta, 3), " ", attr(itDelta, "units")))
   }
   
   bestIndex <- which.max(hyperParamSearch$avg_CV)
