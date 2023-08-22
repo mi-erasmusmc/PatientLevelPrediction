@@ -6,19 +6,31 @@
 #' @param nJobs       How many jobs to do in parallel
 #' @param maxDepth    Max depth of each tree in the RandomForest used
 #' @param nTrees      How many trees to use, default is `auto`
+#' @param verbosity   0 for silent, 1 to display iteration number, 2 to display features selected as well
+#' @param iterations  How many iterations to run `Boruta` for. Default: 100
+#' @param randomState Either `NULL` or an integer. If integer it is the seed used by the random number generator
 #'
 #' @return
 #' An object of class \code{featureEngineeringSettings}
 #' @export
-createBorutaFeatureSelection <- function(nJobs = 10L, 
+createBorutaFeatureSelection <- function(nJobs = -1L, 
                                          maxDepth = 5L,
                                          nTrees = "auto",
                                          verbosity = 2L,
                                          iterations = 100L,
                                          randomState = 42L
                                          ){
-  # TODO check python env is correct here
+  # check python environment
+  npVersion <- tryCatch({np <- reticulate::import('numpy'); np$`__version__`},
+                        error = function(e) stop("Numpy must be available in python environment"))
+  minVersion <- as.integer(substr(npVersion, 3,4)) # extract min version
+  if (minVersion>= 24) {
+    stop(paste0("Numpy version must be less than 1.24 for boruta to work, current version is: ", npVersion))
+  }
+  tryCatch(reticulate::import('boruta'), error= function(e) stop("Boruta must be installed in the python environment"))
+  tryCatch(reticulate::import('sklearn'), error= function(e) stop("sklearn must be installed in the python environment"))
   
+  # check input variables  
   if (inherits(nJobs, "numeric")) {
     nJobs <- as.integer(nJobs)
   }
@@ -28,9 +40,20 @@ createBorutaFeatureSelection <- function(nJobs = 10L,
   if (inherits(nTrees, "numeric")) {
     nTrees <- as.integer(nTrees)
   }
+  if (inherits(verbosity, "numeric")) {
+    verbosity <- as.integer(verbosity)
+  }
+  if (inherits(iterations, "numeric")) {
+    iterations <- as.integer(iterations)
+  }
+  if (inherits(randomState, "numeric")) {
+    randomState <- as.integer(randomState)
+  }
+  
   
   checkIsClass(nTrees, c('integer', "character"))
   checkIsClass(maxDepth, c('integer'))
+  checkIsClass(randomState, c("integer", "NULL"))
   if (inherits(nTrees, c("integer"))) {
     checkHigher(nTrees, 0)  
   } else {
@@ -38,12 +61,19 @@ createBorutaFeatureSelection <- function(nJobs = 10L,
       stop("nTrees should be either an integer or 'auto'")
     }
   } 
-  
   checkHigher(maxDepth, 0)
+  checkHigher(iterations, 0)
+  
+  if (!verbosity %in% c(0L, 1L, 2L)) {
+    stop(paste0("verbosity must be one of 0, 1, 2. You supplied: ", verbosity))
+  }
   
   featureEngineeringSettings <- list(
     nTrees = nTrees,
-    maxDepth = maxDepth
+    maxDepth = maxDepth,
+    iterations = iterations,
+    verbosity = verbosity,
+    randomState = randomState
   )
   
   attr(featureEngineeringSettings, "fun") <- "borutaFeatureSelection"
@@ -72,16 +102,15 @@ borutaFeatureSelection <- function(
     sklearn <- reticulate::import('sklearn')
     BorutaPy <- reticulate::import('boruta')$BorutaPy
 
-          
-
-    
     rf = sklearn$ensemble$RandomForestClassifier(
       max_depth = featureEngineeringSettings$maxDepth,
       n_jobs = featureEngineeringSettings$nJobs, 
     )
     
     featureSelector <- BorutaPy(rf, n_estimators=featureEngineeringSettings$nTrees,
-                                verbose=2L, random_state=42L)
+                                verbose=featureEngineeringSettings$verbosity, 
+                                random_state=featureEngineeringSettings$randomState,
+                                max_iter=featureEngineeringSettings$iterations)
     
     featureSelector$fit(X, y$squeeze())
     
