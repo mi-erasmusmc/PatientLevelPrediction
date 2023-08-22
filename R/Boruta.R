@@ -73,7 +73,8 @@ createBorutaFeatureSelection <- function(nJobs = -1L,
     maxDepth = maxDepth,
     iterations = iterations,
     verbosity = verbosity,
-    randomState = randomState
+    randomState = randomState,
+    nJobs = nJobs
   )
   
   attr(featureEngineeringSettings, "fun") <- "borutaFeatureSelection"
