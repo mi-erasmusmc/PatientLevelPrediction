@@ -21,15 +21,10 @@ createBorutaFeatureSelection <- function(nJobs = -1L,
                                          randomState = 42L
                                          ){
   # check python environment
-  npVersion <- tryCatch({np <- reticulate::import('numpy'); np$`__version__`},
-                        error = function(e) stop("Numpy must be available in python environment"))
-  minVersion <- as.integer(substr(npVersion, 3,4)) # extract min version
-  if (minVersion>= 24) {
-    stop(paste0("Numpy version must be less than 1.24 for boruta to work, current version is: ", npVersion))
-  }
+   tryCatch(reticulate::import('numpy'), error = function(e) stop("Numpy must be available in python environment"))
   tryCatch(reticulate::import('boruta'), error= function(e) stop("Boruta must be installed in the python environment"))
   tryCatch(reticulate::import('sklearn'), error= function(e) stop("sklearn must be installed in the python environment"))
-  
+
   # check input variables  
   if (inherits(nJobs, "numeric")) {
     nJobs <- as.integer(nJobs)
@@ -97,7 +92,7 @@ borutaFeatureSelection <- function(
     labels <- mappedData$labels
     covariateMap <- mappedData$covariateMap
     
-    X <- reticulate::r_to_py(matrixData)$toarray()
+    X <- reticulate::r_to_py(matrixData)
     y <- reticulate::r_to_py(matrix(labels$outcomeCount, ncol=1))
     
     sklearn <- reticulate::import('sklearn')
