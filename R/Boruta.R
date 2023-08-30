@@ -21,7 +21,7 @@ createBorutaFeatureSelection <- function(nJobs = -1L,
                                          randomState = 42L
                                          ){
   # check python environment
-   tryCatch(reticulate::import('numpy'), error = function(e) stop("Numpy must be available in python environment"))
+  tryCatch(reticulate::import('numpy'), error = function(e) stop("Numpy must be available in python environment"))
   tryCatch(reticulate::import('boruta'), error= function(e) stop("Boruta must be installed in the python environment"))
   tryCatch(reticulate::import('sklearn'), error= function(e) stop("sklearn must be installed in the python environment"))
 
