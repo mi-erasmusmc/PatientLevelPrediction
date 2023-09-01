@@ -117,7 +117,7 @@ fitExplore <- function(trainData,
   fit <- tryCatch({
     ParallelLogger::logInfo('Running Explore')
     Explore::trainExplore(output_path = file.path(param$saveDirectory, "Explore"), train_data = exploreData,
-                          ClassFeature = "'outcomeCount'", PositiveClass = 1,
+                          ClassFeature = "'outcomeCount'", PositiveClass = "1",
                           StartRulelength = param$startRulelength, EndRulelength = param$endRulelength, 
                           OperatorMethod = param$operatorMethod, CutoffMethod = param$cutoffMethod,
                           FeatureInclude = param$featureInclude, Maximize = param$maximize,
@@ -173,7 +173,7 @@ fitExplore <- function(trainData,
   if (param$modelsCurve) {
     ParallelLogger::logInfo('Running Explore for different sensitivities/specificities')
     modelTrained[["modelsCurve"]] <- Explore::modelsCurveExplore(output_path = file.path(param$saveDirectory, "Explore"), train_data = exploreData,
-                                                                 ClassFeature = "'outcomeCount'", PositiveClass = 1,
+                                                                 ClassFeature = "'outcomeCount'", PositiveClass = "1",
                                                                  StartRulelength = param$startRulelength, EndRulelength = param$endRulelength, 
                                                                  OperatorMethod = param$operatorMethod, CutoffMethod = param$cutoffMethod,
                                                                  FeatureInclude = param$featureInclude, Maximize = param$maximize,
