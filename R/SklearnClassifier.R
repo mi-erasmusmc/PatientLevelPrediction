@@ -17,11 +17,11 @@
 # limitations under the License.
 
 fitSklearn <- function(
-  trainData,
-  modelSettings,
-  search = "grid",
-  analysisId,
-  ...) {
+    trainData,
+    modelSettings,
+    search = "grid",
+    analysisId,
+    ...) {
   
   param <- modelSettings$param
   
@@ -50,7 +50,7 @@ fitSklearn <- function(
   
   # save the model to outLoc
   outLoc <- createTempModelLoc()
-
+  
   # functions does CV and fits final models
   # returns: prediction (Train/CV),
   #          finalParam (optimal hyper-parameters)
@@ -68,17 +68,18 @@ fitSklearn <- function(
       modelName = pySettings$name,
       pythonImport = pySettings$pythonImport,
       pythonImportSecond = pySettings$pythonImportSecond,
+      pythonImportThird = pySettings$pythonImportThird,
       pythonClassifier = pySettings$pythonClassifier,
       modelLocation = outLoc,
       paramSearch = param,
       saveToJson = attr(param, 'saveToJson')
-      )
     )
+  )
   
   hyperSummary <- do.call(rbind, lapply(cvResult$paramGridSearch, function(x) x$hyperSummary))
-
+  
   prediction <- cvResult$prediction
- 
+  
   variableImportance <- cvResult$variableImportance
   variableImportance[is.na(variableImportance)] <- 0
   
@@ -90,7 +91,7 @@ fitSklearn <- function(
   
   result <- list(
     model = file.path(outLoc),
-
+    
     preprocessing = list(
       featureEngineering = attr(trainData, "metaData")$featureEngineering,
       tidyCovariates = attr(trainData$covariateData, "metaData")$tidyCovariateDataSettings, 
@@ -138,10 +139,10 @@ fitSklearn <- function(
 
 
 predictPythonSklearn <- function(
-  plpModel, 
-  data, 
-  cohort
-  ){
+    plpModel, 
+    data, 
+    cohort
+){
   
   if(inherits(data, 'plpData')){
     # convert
@@ -171,31 +172,43 @@ predictPythonSklearn <- function(
   }
   included <- plpModel$covariateImportance$columnId[plpModel$covariateImportance$included>0] # does this include map?
   pythonData <- reticulate::r_to_py(newData[,included, drop = F])
-
+  
   # make dense if needed
   if(plpModel$preprocessing$requireDenseMatrix){
     pythonData <- pythonData$toarray()
+  }
+  
+  # convert to dataframe if needed
+  if (attr(plpModel$modelDesign$modelSettings$param,"settings")$pythonClassifier == "GOSDT") {
+    pd <- reticulate::import('pandas')
+    pythonData <- pd$DataFrame(pythonData)
   }
   
   cohort <- predictValues(
     model = model, 
     data = pythonData, 
     cohort = cohort, 
+    pythonClassifier = attr(plpModel$modelDesign$modelSettings$param,"settings")$pythonClassifier,
     type = attr(plpModel, 'modelType')
   )
-
+  
   return(cohort)
 }
 
-predictValues <- function(model, data, cohort, type = 'binary'){
-  predictionValue  <- model$predict_proba(data)
-  cohort$value <- reticulate::py_to_r(predictionValue)[,2]
+predictValues <- function(model, data, cohort, pythonClassifier, type = 'binary'){
+  if (pythonClassifier == "GOSDT") {
+    predictionValue  <- model$predict(data)
+    cohort$value <- reticulate::py_to_r(predictionValue)
+  } else {
+    predictionValue  <- model$predict_proba(data)
+    cohort$value <- reticulate::py_to_r(predictionValue)[,2]
+  }
   
   cohort <- cohort %>% 
     dplyr::select(-"rowId") %>%
     dplyr::rename(rowId = "originalRowId")
   
-  attr(cohort, "metaData")$modelType <-  type
+  attr(cohort, "metaData")$modelType <- type
   
   return(cohort)
 }
@@ -212,7 +225,7 @@ checkPySettings <- function(settings){
   
   checkIsClass(settings$pythonImport, c('character'))
   ParallelLogger::logDebug(paste0('pythonImport: ', settings$pythonImport))
-
+  
   if(!is.null(settings$pythonImportSecond)){
     checkIsClass(settings$pythonImportSecond, c('character'))
     ParallelLogger::logDebug(paste0('pythonImportSecond: ', settings$pythonImportSecond))
@@ -225,23 +238,25 @@ checkPySettings <- function(settings){
 }
 
 gridCvPython <- function(
-  matrixData, 
-  labels, 
-  seed, 
-  requiresDenseMatrix, 
-  modelName,
-  pythonImport,
-  pythonImportSecond,
-  pythonClassifier,
-  modelLocation,
-  paramSearch,
-  saveToJson
-  )
-  {
+    matrixData, 
+    labels, 
+    seed, 
+    requiresDenseMatrix, 
+    modelName,
+    pythonImport,
+    pythonImportSecond,
+    pythonImportThird, # TODO: check if works with existing python models
+    pythonClassifier,
+    modelLocation,
+    paramSearch,
+    saveToJson
+)
+{
   
   ParallelLogger::logInfo(paste0("Running CV for ",modelName," model"))
- 
+  
   np <- reticulate::import('numpy')
+  pd <- reticulate::import('pandas')
   os <- reticulate::import('os')
   sys <- reticulate::import('sys')
   math <- reticulate::import('math')
@@ -249,7 +264,9 @@ gridCvPython <- function(
   joblib <- reticulate::import('joblib')
   firstImport <- reticulate::import(pythonImport, convert=FALSE)
   
-  if(!is.null(pythonImportSecond)){
+  if(!is.null(pythonImportThird)){
+    classifier <- firstImport[[pythonImportSecond]][[pythonImportThird]][[pythonClassifier]]
+  } else if(!is.null(pythonImportSecond)){
     classifier <- firstImport[[pythonImportSecond]][[pythonClassifier]]
   } else{
     classifier <- firstImport[[pythonClassifier]]
@@ -260,7 +277,7 @@ gridCvPython <- function(
   gridSearchPredictons <- list()
   length(gridSearchPredictons) <- length(paramSearch)
   
-  for(gridId in 1:length(paramSearch)){
+  for(gridId in 1:length(paramSearch)){ # gridId <- 1
     
     # initiate prediction
     prediction <- c()
@@ -268,7 +285,7 @@ gridCvPython <- function(
     fold <- labels$index
     ParallelLogger::logInfo(paste0('Max fold: ', max(fold)))
     
-    for( i in 1:max(fold)){
+    for( i in 1:max(fold)){ # i <- 1
       
       ParallelLogger::logInfo(paste0('Fold ',i))
       trainY <- reticulate::r_to_py(labels$outcomeCount[fold != i])
@@ -281,10 +298,16 @@ gridCvPython <- function(
         testX <- testX$toarray()
       }
       
+      if (pythonClassifier == "GOSDT") { # TODO: check how to add this
+        trainX <- pd$DataFrame(trainX)
+        trainY <- pd$DataFrame(trainY)
+        testX <- pd$DataFrame(testX)
+      }
+      
       model <- fitPythonModel(classifier, paramSearch[[gridId]], seed, trainX, trainY, np, pythonClassifier)
       
       ParallelLogger::logInfo("Calculating predictions on left out fold set...")
-      prediction <- rbind(prediction, predictValues(model = model, data = testX, cohort = labels[fold == i,], type = 'binary'))
+      prediction <- rbind(prediction, predictValues(model = model, data = testX, cohort = labels[fold == i,], pythonClassifier = pythonClassifier, type = 'binary'))
       
     }
     
@@ -315,10 +338,16 @@ gridCvPython <- function(
     trainX <- trainX$toarray()
   }
   
+  if (pythonClassifier == "GOSDT") { # TODO: check how to add this
+    trainX <- pd$DataFrame(trainX)
+    trainY <- pd$DataFrame(trainY)
+  }
+  
   model <- fitPythonModel(classifier, finalParam , seed, trainX, trainY, np, pythonClassifier)
   
   ParallelLogger::logInfo("Calculating predictions on all train data...")
-  prediction <- predictValues(model = model, data = trainX, cohort = labels, type = 'binary')
+  prediction <- predictValues(model = model, data = trainX, cohort = labels, pythonClassifier = pythonClassifier, type = 'binary')
+  
   prediction$evaluationType <- 'Train'
   
   prediction <- rbind(
@@ -339,7 +368,7 @@ gridCvPython <- function(
   
   # feature importance
   variableImportance <- tryCatch({reticulate::py_to_r(model$feature_importances_)}, error = function(e){ParallelLogger::logInfo(e);return(rep(1,ncol(matrixData)))})
-
+  
   if (pythonClassifier == "DecisionTreeClassifier") {
     ParallelLogger::logInfo(paste0("Nodes: ", model$tree_$node_count))
   }
@@ -372,12 +401,47 @@ fitPythonModel <- function(classifier, param, seed, trainX, trainY, np, pythonCl
   }
   ParallelLogger::logInfo(paste(names(param), unlist(paramString), sep = ':', collapse = '    '))
   
+  if (pythonClassifier == "GOSDT") {
+    if (param$warmLB) {
+      pd <- reticulate::import('pandas')
+      
+      # guess thresholds
+      import_thresholds <- reticulate::import('gosdt', convert=FALSE)
+      compute_thresholds <- import_thresholds[['model']][['threshold_guess']][['compute_thresholds']]
+      trainX_threshold <- compute_thresholds(X = trainX, y = trainY, n_est = as.integer(50), max_depth = as.integer(1))
+      
+      # guess lower bound
+      start_time = Sys.time()
+      
+      import_threshold <- reticulate::import('sklearn', convert=FALSE)
+      classifier_threshold <- import_threshold[['ensemble']][['AdaBoostClassifier']]
+      param_threshold <- list(nEstimators=as.integer(50),learningRate=0.1, algorithm="SAMME.R",seed=as.integer(100))
+      
+      clf <- do.call('AdaBoostClassifierInputs', list(classifier = classifier_threshold, param = param_threshold))
+      clf <- clf$fit(trainX_threshold[0], trainY) # TODO: please change the shape of y to (n_samples, )
+      
+      predictionValue  <- clf$predict_proba(trainX_threshold[0])
+      warm_labels <- reticulate::py_to_r(predictionValue)[,2]
+      
+      elapsed_time = Sys.time()- start_time
+      param$lb_time <- elapsed_time
+      
+      # save the labels from lower bound guesses as a tmp file
+      write.csv(warm_labels, param$pathToLabels)
+    }
+  }
+  
   if(!is.null(param)){
     model <- do.call(paste0(pythonClassifier,'Inputs'), list(classifier = classifier, param = param))
   } else{
     model <- classifier()
   }
-  model <- model$fit(trainX, trainY)
+  
+  model <- model$fit(trainX, trainY) 
+  
+  # print(model$configuration) # TODO: temporary - remove later
+  # print(str(model$tree))
+  
   timeEnd <- Sys.time()
   
   ParallelLogger::logInfo(paste0("Training model took (mins): ",difftime(timeEnd, timeStart, units='mins') ))
@@ -440,9 +504,9 @@ computeGridPerformance <- function(prediction, param, performanceFunct = 'comput
       paramValues
     )
   )
-
   
-
+  
+  
   
   return(
     list(
