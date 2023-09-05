@@ -5,7 +5,7 @@
 \title{Create the settings for Boruta feature selection}
 \usage{
 createBorutaFeatureSelection(
-  nJobs = 10L,
+  nJobs = -1L,
   maxDepth = 5L,
   nTrees = "auto",
   verbosity = 2L,
@@ -19,6 +19,12 @@ createBorutaFeatureSelection(
 \item{maxDepth}{Max depth of each tree in the RandomForest used}
 
 \item{nTrees}{How many trees to use, default is `auto`}
+
+\item{verbosity}{0 for silent, 1 to display iteration number, 2 to display features selected as well}
+
+\item{iterations}{How many iterations to run `Boruta` for. Default: 100}
+
+\item{randomState}{Either `NULL` or an integer. If integer it is the seed used by the random number generator}
 }
 \value{
 An object of class \code{featureEngineeringSettings}
