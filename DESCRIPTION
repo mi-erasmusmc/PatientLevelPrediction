@@ -69,7 +69,8 @@ Suggests:
     testthat,
     withr,
     xgboost (> 1.3.2.1),
-    lightgbm
+    lightgbm,
+    praznik
 Remotes:
     ohdsi/BigKnn,
     ohdsi/Eunomia,

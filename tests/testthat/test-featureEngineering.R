@@ -175,3 +175,38 @@ test_that("featureSelection is applied on test_data", {
     expect_true(attr(prediction, 'metaData')$featureEngineering) 
   }
 })
+
+test_that("njmim settings function works", {
+  k <- sample(1000,1)
+  featureEngineeringSettings <- njmimSettings(k = k)
+  
+  expect_is(featureEngineeringSettings, 'featureEngineeringSettings')
+  expect_equal(featureEngineeringSettings$k, k)
+  expect_equal(attr(featureEngineeringSettings, "fun"), 'njmimFeatureSelection')
+  
+  expect_error(testUniFun(k = 'ffdff'))
+  expect_error(testUniFun(k = NULL))
+  expect_error(testUniFun(k = -1))
+})
+
+test_that("NJMIM feature selection works", {
+  
+  k <- 20+sample(10,1)
+  featureEngineeringSettings <- njmimSettings(k = k)
+  newTrainData <- copyTrainData(trainData)
+  
+  trainDataCovariateSize <- newTrainData$covariateData$covariates %>% dplyr::tally() %>% dplyr::pull()
+  
+  reducedTrainData <- njmimFeatureSelection(
+    trainData = newTrainData, 
+    featureEngineeringSettings = featureEngineeringSettings,
+    covariateIdsInclude = NULL
+  )
+  
+  newDataCovariateSize <- reducedTrainData$covariateData$covariates %>% dplyr::tally() %>% dplyr::pull()
+  expect_true(newDataCovariateSize <= trainDataCovariateSize)
+  
+  # expect k many covariates left
+  expect_equal(k,reducedTrainData$covariateData$covariateRef %>% dplyr::tally() %>% dplyr::pull())
+  
+})
