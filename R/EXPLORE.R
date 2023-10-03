@@ -26,6 +26,7 @@
 #' @param featureInclude 
 #' @param maximize 
 #' @param accuracy 
+#' @param balancedAccuracy 
 #' @param specificity 
 #' @param printSettings 
 #' @param printPerformance 
@@ -44,6 +45,7 @@ setExplore <- function( # TODO: check default settings
   featureInclude = "",
   maximize = "BALANCEDACCURACY",
   accuracy = 0,
+  balancedAccuracy = 0,
   specificity = 0,
   printSettings = TRUE,
   printPerformance = TRUE,
@@ -64,6 +66,7 @@ setExplore <- function( # TODO: check default settings
                 featureInclude = featureInclude,
                 maximize = maximize,
                 accuracy = accuracy,
+                balancedAccuracy = balancedAccuracy,
                 specificity = specificity,
                 printSettings = printSettings,
                 printPerformance = printPerformance,
@@ -121,7 +124,7 @@ fitExplore <- function(trainData,
                           StartRulelength = param$startRulelength, EndRulelength = param$endRulelength, 
                           OperatorMethod = param$operatorMethod, CutoffMethod = param$cutoffMethod,
                           FeatureInclude = param$featureInclude, Maximize = param$maximize,
-                          Accuracy = param$accuracy, Specificity = param$specificity,
+                          Accuracy = param$accuracy, BalancedAccuracy = param$balancedAccuracy, Specificity = param$specificity,
                           Subsumption = param$subsumption, BranchBound = param$branchBound,
                           Parallel = param$parallel)
   },
