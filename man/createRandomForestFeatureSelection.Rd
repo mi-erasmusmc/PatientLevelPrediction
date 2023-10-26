@@ -2,7 +2,7 @@
 % Please edit documentation in R/FeatureEngineering.R
 \name{createRandomForestFeatureSelection}
 \alias{createRandomForestFeatureSelection}
-\title{Create the settings for random foreat based feature selection}
+\title{Create the settings for defining any feature selection that will be done}
 \usage{
 createRandomForestFeatureSelection(ntrees = 2000, maxDepth = 17)
 }
@@ -10,13 +10,20 @@ createRandomForestFeatureSelection(ntrees = 2000, maxDepth = 17)
 \item{ntrees}{number of tree in forest}
 
 \item{maxDepth}{MAx depth of each tree}
+
+\item{k}{This function returns the K features most associated (univariately) to the outcome}
 }
 \value{
 An object of class \code{featureEngineeringSettings}
+Create the settings for random foreat based feature selection
+
+An object of class \code{featureEngineeringSettings}
 }
 \description{
-Create the settings for random foreat based feature selection
+Create the settings for defining any feature selection that will be done
 }
 \details{
+Returns an object of class \code{featureEngineeringSettings} that specifies the sampling function that will be called and the settings
+
 Returns an object of class \code{featureEngineeringSettings} that specifies the sampling function that will be called and the settings
 }
