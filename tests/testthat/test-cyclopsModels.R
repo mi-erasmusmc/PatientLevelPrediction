@@ -196,7 +196,7 @@ test_that("set IHT inputs", {
   expect_equal(model_set$param$priorParams$K, k)
   
   
-  penalty <- sample(c('bic', 'aic'),1)
+  penalty <- sample(c('bic', 'aic', 'auto'),1)
   model_set <- setIterativeHardThresholding(penalty = penalty)
   expect_equal(model_set$param$priorParams$penalty, penalty)
   
