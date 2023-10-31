@@ -452,15 +452,12 @@ borutaFeatureSelection <- function(
 ){
   
   if(is.null(covariateIdsInclude)){
-    #convert data into matrix:
-    mappedData <- toSparseM(trainData)
-    
-    matrixData <- mappedData$dataMatrix
-    labels <- mappedData$labels
-    covariateMap <- mappedData$covariateMap
-    
-    X <- reticulate::r_to_py(matrixData)
-    y <- reticulate::r_to_py(matrix(labels$outcomeCount, ncol=1))
+    sparseData <- toSparseM(trainData)
+    dataMatrix <- sparseData$dataMatrix
+    covariateMap <- sparseData$covariateMap
+
+    X <- reticulate::r_to_py(dataMatrix)
+    y <- reticulate::r_to_py(matrix(sparseData$labels$outcomeCount, ncol=1))
     
     sklearn <- reticulate::import('sklearn')
     BorutaPy <- reticulate::import('boruta')$BorutaPy
