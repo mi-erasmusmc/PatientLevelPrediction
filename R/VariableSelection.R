@@ -129,6 +129,10 @@ univariateFeatureSelection <- function(trainData,
         dplyr::filter(columnId %in% selected) %>%
         dplyr::pull(covariateId)
       
+    } else {
+      # return all covariates
+      covariateIdsInclude <- sparseData$covariateMap %>% 
+        dplyr::pull(covariateId)
     }
   }
   
