@@ -41,40 +41,13 @@ createFeatureEngineeringSettings <- function(type = 'none'){
 }
 
 
-#' Create the settings for defining any feature selection that will be done
-#'
-#' @details
-#' Returns an object of class \code{featureEngineeringSettings} that specifies the sampling function that will be called and the settings
-#'
-#' @param k              This function returns the K features most associated (univariately) to the outcome
-#'
-#' @return
-#' An object of class \code{featureEngineeringSettings}
-# createUnivariateFeatureSelection <- function(k = 100){
-#   
-#   if (inherits(k, 'numeric')) {
-#     k <- as.integer(k)
-#   }
-#   
-#   checkIsClass(k, 'integer')
-#   checkHigherEqual(k, 0)
-#   
-#   featureEngineeringSettings <- list(k = k) 
-#   
-#   attr(featureEngineeringSettings, "fun") <- "univariateFeatureSelection"
-#   class(featureEngineeringSettings) <- "featureEngineeringSettings"
-#   
-#   return(featureEngineeringSettings)
-#   
-# }
-
 #' Create the settings for random foreat based feature selection
 #'
 #' @details
 #' Returns an object of class \code{featureEngineeringSettings} that specifies the sampling function that will be called and the settings
 #'
-#' @param ntrees              number of tree in forest
-#' @param maxDepth            MAx depth of each tree
+#' @param ntrees              Number of tree in forest
+#' @param maxDepth            Max depth of each tree
 #'
 #' @return
 #' An object of class \code{featureEngineeringSettings}
@@ -96,67 +69,6 @@ createRandomForestFeatureSelection <- function(ntrees = 2000, maxDepth = 17){
   
   return(featureEngineeringSettings)
 }
-
-# univariateFeatureSelection <- function(
-#   trainData, 
-#   featureEngineeringSettings,
-#   covariateIdsInclude = NULL){
-#   
-#   if(is.null(covariateIdsInclude)){
-#     #convert data into matrix:
-#     mappedData <- toSparseM(trainData, trainData$labels)
-#     
-#     matrixData <- mappedData$dataMatrix
-#     labels <- mappedData$labels
-#     covariateMap <- mappedData$covariateMap
-#     
-#     X <- reticulate::r_to_py(matrixData)
-#     y <- reticulate::r_to_py(labels[,'outcomeCount'])
-#     
-#     np <- reticulate::import('numpy')
-#     os <- reticulate::import('os')
-#     sys <- reticulate::import('sys')
-#     math <- reticulate::import('math')
-#     scipy <- reticulate::import('scipy')
-#     
-#     sklearn <- reticulate::import('sklearn')
-#     
-#     SelectKBest <- sklearn$feature_selection$SelectKBest
-#     chi2 <- sklearn$feature_selection$chi2
-#     
-#     kbest <- SelectKBest(chi2, k = featureEngineeringSettings$k)$fit(X, y$outcomeCount)
-#     kbest$scores_ <- np$nan_to_num(kbest$scores_)
-# 
-#     # taken from sklearn code, matches the application during transform call
-#     k <- featureEngineeringSettings$k
-#     mask <- np$zeros(length(kbest$scores_), dtype='bool')
-#     mask[np$argsort(kbest$scores_, kind="mergesort")+1][(length(kbest$scores_)-k+1):length(kbest$scores_)] <- TRUE
-#     
-#     covariateIdsInclude <- covariateMap[mask,]$covariateId
-#   }
-#   
-#   trainData$covariateData$covariates <- trainData$covariateData$covariates %>% 
-#     dplyr::filter(.data$covariateId %in% covariateIdsInclude)
-#   
-#   trainData$covariateData$covariateRef <- trainData$covariateData$covariateRef %>% 
-#     dplyr::filter(.data$covariateId %in% covariateIdsInclude)
-#   
-#   featureEngineering <- list(
-#     funct = 'univariateFeatureSelection',
-#     settings = list(
-#       featureEngineeringSettings = featureEngineeringSettings,
-#       covariateIdsInclude = covariateIdsInclude
-#     )
-#   )
-#   
-#   attr(trainData, 'metaData')$featureEngineering = listAppend(
-#     attr(trainData, 'metaData')$featureEngineering,
-#     featureEngineering
-#   )
-#   
-#   return(trainData)
-#   
-# }
 
 
 randomForestFeatureSelection <- function(
