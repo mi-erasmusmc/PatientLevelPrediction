@@ -37,8 +37,8 @@ njmimSettings <- function(k = 20) {
 
 njmimFeatureSelection <- function(trainData,
                                   featureEngineeringSettings,
-                                  covariateIdsInclude = NULL) {
-  if (is.null(covariateIdsInclude)) {
+                                  covariateIdsSelected = NULL) {
+  if (is.null(covariateIdsSelected)) {
     sparseData <- toSparseM(trainData, trainData$labels)
     denseMatrix <- as.matrix(sparseData$dataMatrix)
     dataFrame <- as.data.frame(denseMatrix)
@@ -48,21 +48,21 @@ njmimFeatureSelection <- function(trainData,
                                 Y = y,
                                 k = featureEngineeringSettings$k)
     
-    covariateIdsInclude <- sparseData$covariateMap %>%
+    covariateIdsSelected <- sparseData$covariateMap %>%
       dplyr::filter(columnId %in% selection$selection) %>%
       dplyr::pull(covariateId)
   }
   
   trainData$covariateData$covariates <- trainData$covariateData$covariates %>%
-    dplyr::filter(covariateId %in% covariateIdsInclude)
+    dplyr::filter(covariateId %in% covariateIdsSelected)
   trainData$covariateData$covariateRef <- trainData$covariateData$covariateRef %>%
-    dplyr::filter(covariateId %in% covariateIdsInclude)
+    dplyr::filter(covariateId %in% covariateIdsSelected)
   
   featureEngineering <- list(
     funct = 'njmimFeatureSelection',
     settings = list(
       featureEngineeringSettings = featureEngineeringSettings,
-      covariateIdsInclude = covariateIdsInclude
+      covariateIdsSelected = covariateIdsSelected
     )
   )
   
@@ -105,8 +105,8 @@ univariateSettings <- function(k = 20, # TODO: set dynamic number based on elbow
 
 univariateFeatureSelection <- function(trainData,
                                        featureEngineeringSettings,
-                                       covariateIdsInclude = NULL) {
-  if (is.null(covariateIdsInclude)) {
+                                       covariateIdsSelected = NULL) {
+  if (is.null(covariateIdsSelected)) {
     sparseData <- toSparseM(trainData, trainData$labels)
     denseMatrix <- as.matrix(sparseData$dataMatrix)
     dataFrame <- as.data.frame(denseMatrix)
@@ -125,27 +125,27 @@ univariateFeatureSelection <- function(trainData,
       # Select variables
       selected <- names(correlation)[1:min(featureEngineeringSettings$k, length(correlation))]
       
-      covariateIdsInclude <- sparseData$covariateMap %>%
+      covariateIdsSelected <- sparseData$covariateMap %>%
         dplyr::filter(columnId %in% selected) %>%
         dplyr::pull(covariateId)
       
     } else {
       # return all covariates
-      covariateIdsInclude <- sparseData$covariateMap %>% 
+      covariateIdsSelected <- sparseData$covariateMap %>% 
         dplyr::pull(covariateId)
     }
   }
   
   trainData$covariateData$covariates <- trainData$covariateData$covariates %>%
-    dplyr::filter(covariateId %in% covariateIdsInclude)
+    dplyr::filter(covariateId %in% covariateIdsSelected)
   trainData$covariateData$covariateRef <- trainData$covariateData$covariateRef %>%
-    dplyr::filter(covariateId %in% covariateIdsInclude)
+    dplyr::filter(covariateId %in% covariateIdsSelected)
   
   featureEngineering <- list(
     funct = 'univariateFeatureSelection',
     settings = list(
       featureEngineeringSettings = featureEngineeringSettings,
-      covariateIdsInclude = covariateIdsInclude
+      covariateIdsSelected = covariateIdsSelected
     )
   )
   
@@ -200,8 +200,8 @@ stepwiseSettings <- function(k = 20, # TODO: set dynamic number based on elbow
 
 stepwiseFeatureSelection <- function(trainData,
                                      featureEngineeringSettings,
-                                     covariateIdsInclude = NULL) {
-  if (is.null(covariateIdsInclude)) {
+                                     covariateIdsSelected = NULL) {
+  if (is.null(covariateIdsSelected)) {
     search <- 999 # TODO: which number to use?
     analysisId <- 999 # TODO: which number to use?
     
@@ -250,19 +250,19 @@ stepwiseFeatureSelection <- function(trainData,
     }
     
     covariates <- as.data.frame(update_trainData$covariateData$covariates)
-    covariateIdsInclude <- unique(covariates$covariateId)
+    covariateIdsSelected <- unique(covariates$covariateId)
   }
   
   trainData$covariateData$covariates <- trainData$covariateData$covariates %>%
-    dplyr::filter(covariateId %in% covariateIdsInclude)
+    dplyr::filter(covariateId %in% covariateIdsSelected)
   trainData$covariateData$covariateRef <- trainData$covariateData$covariateRef %>%
-    dplyr::filter(covariateId %in% covariateIdsInclude)
+    dplyr::filter(covariateId %in% covariateIdsSelected)
   
   featureEngineering <- list(
     funct = 'univariateFeatureSelection',
     settings = list(
       featureEngineeringSettings = featureEngineeringSettings,
-      covariateIdsInclude = covariateIdsInclude
+      covariateIdsSelected = covariateIdsSelected
     )
   )
   
@@ -452,10 +452,10 @@ borutaSettings <- function(nJobs = -1L,
 borutaFeatureSelection <- function(
     trainData, 
     featureEngineeringSettings,
-    covariateIdsInclude = NULL
+    covariateIdsSelected = NULL
 ){
   
-  if(is.null(covariateIdsInclude)){
+  if(is.null(covariateIdsSelected)){
     sparseData <- toSparseM(trainData)
     dataMatrix <- sparseData$dataMatrix
     covariateMap <- sparseData$covariateMap
@@ -481,24 +481,24 @@ borutaFeatureSelection <- function(
     includedFeatures <- featureSelector$support_
     
     
-    covariateIdsInclude <- covariateMap %>% 
+    covariateIdsSelected <- covariateMap %>% 
       dplyr::filter(.data$columnId %in% which(includedFeatures)) %>%
       dplyr::select("covariateId") %>% dplyr::arrange("covariateId") %>%
       dplyr::pull()
   } 
   
   trainData$covariateData$covariates <- trainData$covariateData$covariates %>% 
-    dplyr::filter(.data$covariateId %in% covariateIdsInclude)
+    dplyr::filter(.data$covariateId %in% covariateIdsSelected)
   
   trainData$covariateData$covariateRef <- trainData$covariateData$covariateRef %>% 
-    dplyr::filter(.data$covariateId %in% covariateIdsInclude)
+    dplyr::filter(.data$covariateId %in% covariateIdsSelected)
   
   
   featureEngineering <- list(
     funct = 'borutaFeatureSelection',
     settings = list(
       featureEngineeringSettings = featureEngineeringSettings,
-      covariateIdsInclude = covariateIdsInclude
+      covariateIdsSelected = covariateIdsSelected
     )
   )
   

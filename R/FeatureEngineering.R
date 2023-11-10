@@ -74,7 +74,7 @@ createRandomForestFeatureSelection <- function(ntrees = 2000, maxDepth = 17){
 randomForestFeatureSelection <- function(
   trainData, 
   featureEngineeringSettings,
-  covariateIdsInclude = NULL
+  covariateIdsInclude = NULL # equivalent to covariateIdsSelected in VariableSelection.R
 ){
   
   if(is.null(covariateIdsInclude)){

@@ -72,7 +72,7 @@ test_that("univariateFeatureSelection", {
   reducedTrainData <- univariateFeatureSelection(
     trainData = newTrainData, 
     featureEngineeringSettings = featureEngineeringSettings,
-    covariateIdsInclude = NULL
+    covariateIdsSelected = NULL
     )
   
   newDataCovariateSize <- reducedTrainData$covariateData$covariates %>% dplyr::tally() %>% dplyr::pull()
@@ -144,7 +144,8 @@ test_that("randomForestFeatureSelection", {
   reducedTrainData <- randomForestFeatureSelection(
     trainData = newTrainData, 
     featureEngineeringSettings = featureEngineeringSettings,
-    covariateIdsInclude = NULL
+    covariateIdsSelected = NULL
+    
   )
   
   newDataCovariateSize <- reducedTrainData$covariateData$covariates %>% dplyr::tally() %>% dplyr::pull()
@@ -159,7 +160,7 @@ test_that("featureSelection is applied on test_data", {
   newTrainData <- univariateFeatureSelection(
     trainData = newTrainData, 
     featureEngineeringSettings = featureEngineeringSettings,
-    covariateIdsInclude = NULL
+    covariateIdsSelected = NULL
   )
   
   modelSettings <- setLassoLogisticRegression()
@@ -200,7 +201,7 @@ test_that("NJMIM feature selection works", {
   reducedTrainData <- njmimFeatureSelection(
     trainData = newTrainData, 
     featureEngineeringSettings = featureEngineeringSettings,
-    covariateIdsInclude = NULL
+    covariateIdsSelected = NULL
   )
   
   newDataCovariateSize <- reducedTrainData$covariateData$covariates %>% dplyr::tally() %>% dplyr::pull()
