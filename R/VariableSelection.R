@@ -44,13 +44,20 @@ njmimFeatureSelection <- function(trainData,
     dataFrame <- as.data.frame(denseMatrix)
     y <- sparseData$labels$outcomeCount
     
-    selection <- praznik::NJMIM(X = dataFrame, 
-                                Y = y,
-                                k = featureEngineeringSettings$k)
+    if (ncol(dataFrame) > featureEngineeringSettings$k) {
+      selection <- praznik::NJMIM(X = dataFrame, 
+                                  Y = y,
+                                  k = featureEngineeringSettings$k)
+      
+      covariateIdsSelected <- sparseData$covariateMap %>%
+        dplyr::filter(columnId %in% selection$selection) %>%
+        dplyr::pull(covariateId)
+    } else {
+      # return all covariates
+      covariateIdsSelected <- sparseData$covariateMap %>% 
+        dplyr::pull(covariateId)
+    }
     
-    covariateIdsSelected <- sparseData$covariateMap %>%
-      dplyr::filter(columnId %in% selection$selection) %>%
-      dplyr::pull(covariateId)
   }
   
   trainData$covariateData$covariates <- trainData$covariateData$covariates %>%
@@ -459,7 +466,7 @@ borutaFeatureSelection <- function(
     sparseData <- toSparseM(trainData)
     dataMatrix <- sparseData$dataMatrix
     covariateMap <- sparseData$covariateMap
-
+    
     X <- reticulate::r_to_py(dataMatrix)
     y <- reticulate::r_to_py(matrix(sparseData$labels$outcomeCount, ncol=1))
     
@@ -480,7 +487,6 @@ borutaFeatureSelection <- function(
     
     includedFeatures <- featureSelector$support_
     
-    
     covariateIdsSelected <- covariateMap %>% 
       dplyr::filter(.data$columnId %in% which(includedFeatures)) %>%
       dplyr::select("covariateId") %>% dplyr::arrange("covariateId") %>%
@@ -492,7 +498,6 @@ borutaFeatureSelection <- function(
   
   trainData$covariateData$covariateRef <- trainData$covariateData$covariateRef %>% 
     dplyr::filter(.data$covariateId %in% covariateIdsSelected)
-  
   
   featureEngineering <- list(
     funct = 'borutaFeatureSelection',
