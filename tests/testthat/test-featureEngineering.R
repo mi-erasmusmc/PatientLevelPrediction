@@ -40,14 +40,14 @@ test_that("createFeatureEngineeringSettings correct class", {
 
 testUniFun <- function(k = 100){
   
-  result <- createUnivariateFeatureSelection(k = k)
+  result <- univariateSettings(k = k)
   
   return(result)
 }
 
 
 
-test_that("createUnivariateFeatureSelection correct class", {
+test_that("univariateSettings correct class", {
   k <- sample(1000,1)
   featureEngineeringSettings <- testUniFun(k = k)
   
@@ -72,7 +72,7 @@ test_that("univariateFeatureSelection", {
   reducedTrainData <- univariateFeatureSelection(
     trainData = newTrainData, 
     featureEngineeringSettings = featureEngineeringSettings,
-    covariateIdsInclude = NULL
+    covariateIdsSelected = NULL
     )
   
   newDataCovariateSize <- reducedTrainData$covariateData$covariates %>% dplyr::tally() %>% dplyr::pull()
@@ -144,7 +144,8 @@ test_that("randomForestFeatureSelection", {
   reducedTrainData <- randomForestFeatureSelection(
     trainData = newTrainData, 
     featureEngineeringSettings = featureEngineeringSettings,
-    covariateIdsInclude = NULL
+    covariateIdsSelected = NULL
+    
   )
   
   newDataCovariateSize <- reducedTrainData$covariateData$covariates %>% dplyr::tally() %>% dplyr::pull()
@@ -159,7 +160,7 @@ test_that("featureSelection is applied on test_data", {
   newTrainData <- univariateFeatureSelection(
     trainData = newTrainData, 
     featureEngineeringSettings = featureEngineeringSettings,
-    covariateIdsInclude = NULL
+    covariateIdsSelected = NULL
   )
   
   modelSettings <- setLassoLogisticRegression()
@@ -176,7 +177,7 @@ test_that("featureSelection is applied on test_data", {
   }
 })
 
-test_that("njmim settings function works", {
+test_that("NJMIM settings function works", {
   k <- sample(1000,1)
   featureEngineeringSettings <- njmimSettings(k = k)
   
@@ -200,7 +201,7 @@ test_that("NJMIM feature selection works", {
   reducedTrainData <- njmimFeatureSelection(
     trainData = newTrainData, 
     featureEngineeringSettings = featureEngineeringSettings,
-    covariateIdsInclude = NULL
+    covariateIdsSelected = NULL
   )
   
   newDataCovariateSize <- reducedTrainData$covariateData$covariates %>% dplyr::tally() %>% dplyr::pull()

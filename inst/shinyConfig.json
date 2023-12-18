@@ -7,11 +7,8 @@
       "shinyModulePackage": "OhdsiShinyModules",
       "uiFunction": "aboutViewer",
       "serverFunction": "aboutServer",
-      "databaseConnectionKeyService": null,
-      "databaseConnectionKeyUsername": null,
       "infoBoxFile": "aboutHelperFile()",
       "icon": "info",
-      "keyring": true,
       "order": 1
     },
     {
@@ -19,13 +16,10 @@
       "tabName": "Prediction",
       "tabText": "Prediction",
       "shinyModulePackage": "OhdsiShinyModules",
-      "uiFunction": "predictionViewer",
-      "serverFunction": "predictionServer",
-      "databaseConnectionKeyService": "resultDatabaseDetails",
-      "databaseConnectionKeyUsername": "prediction",
-      "infoBoxFile": "predictionHelperFile()",
+      "uiFunction": "patientLevelPredictionViewer",
+      "serverFunction": "patientLevelPredictionServer",
+      "infoBoxFile": "patientLevelPredictionHelperFile()",
       "icon": "chart-line",
-      "keyring": false,
       "order": 2
     }
   ]

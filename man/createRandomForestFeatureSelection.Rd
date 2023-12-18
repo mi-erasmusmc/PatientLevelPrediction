@@ -7,9 +7,9 @@
 createRandomForestFeatureSelection(ntrees = 2000, maxDepth = 17)
 }
 \arguments{
-\item{ntrees}{number of tree in forest}
+\item{ntrees}{Number of tree in forest}
 
-\item{maxDepth}{MAx depth of each tree}
+\item{maxDepth}{Max depth of each tree}
 }
 \value{
 An object of class \code{featureEngineeringSettings}

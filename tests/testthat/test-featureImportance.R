@@ -19,7 +19,7 @@ context("FeatureImportance")
 # Test unit for the creation of the study externalValidatePlp
 
 
-test_that("pfi feature importance returns data.frame", {
+test_that("feature importance returns data.frame", {
   
   # limit to a sample of 10 covariates for faster test
   covariates <- plpResult$model$covariateImportance %>% 
@@ -42,12 +42,12 @@ test_that("pfi feature importance returns data.frame", {
   
 })
 
-test_that('pfi feature importance works with logger or without covariates', {
+test_that('feature importance works with logger or without covariates', {
   tinyResults <- runPlp(plpData = tinyPlpData,
                         populationSettings = populationSettings,
                         outcomeId = 2,
                         analysisId = 'tinyFit',
-                        featureEngineeringSettings = createUnivariateFeatureSelection(k=20),
+                        featureEngineeringSettings = univariateSettings(k=20),
                         executeSettings = createExecuteSettings(
                           runSplitData = T,
                           runSampleData = F,

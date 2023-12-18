@@ -15,13 +15,15 @@ setIterativeHardThresholding(
   tolerance = 1e-08,
   maxIterations = 10000,
   threshold = 1e-06,
-  delta = 0
+  delta = 0,
+  nTries = 10
 )
 }
 \arguments{
 \item{K}{The maximum number of non-zero predictors}
 
-\item{penalty}{Specifies the IHT penalty; possible values are `BIC` or `AIC` or a numeric value}
+\item{penalty}{Specifies the IHT penalty; possible values are `BIC` or `AIC` or a numeric value
+If set to `auto` it will do CV to determine best penalty}
 
 \item{seed}{An option to add a seed when training the model}
 
@@ -31,8 +33,8 @@ setIterativeHardThresholding(
 
 \item{fitBestSubset}{Logical: Fit final subset with no regularization}
 
-\item{initialRidgeVariance}{integer or character vector. If set to auto will fit Ridge regression using
-cross validation to determine best initialRidgeVariance value.}
+\item{initialRidgeVariance}{integer or character vector. If set to `auto` will fit Ridge regression using
+cross validation to determine best `initialRidgeVariance` value.}
 
 \item{tolerance}{numeric}
 
@@ -41,6 +43,8 @@ cross validation to determine best initialRidgeVariance value.}
 \item{threshold}{numeric}
 
 \item{delta}{numeric}
+
+\item{nTries}{If `penalty` is `auto`, how many penalties to include in grid search}
 }
 \description{
 Create setting for lasso logistic regression

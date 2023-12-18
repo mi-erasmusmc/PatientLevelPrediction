@@ -169,16 +169,18 @@ setCoxModel <- function(
 #'  
 #' @param K              The maximum number of non-zero predictors
 #' @param penalty        Specifies the IHT penalty; possible values are `BIC` or `AIC` or a numeric value
+#'                       If set to `auto` it will do CV to determine best penalty
 #' @param seed           An option to add a seed when training the model
 #' @param exclude        A vector of numbers or covariateId names to exclude from prior
 #' @param forceIntercept Logical: Force intercept coefficient into regularization
 #' @param fitBestSubset  Logical: Fit final subset with no regularization 
-#' @param initialRidgeVariance  integer or character vector. If set to auto will fit Ridge regression using
-#' cross validation to determine best initialRidgeVariance value.
+#' @param initialRidgeVariance  integer or character vector. If set to `auto` will fit Ridge regression using
+#' cross validation to determine best `initialRidgeVariance` value.
 #' @param tolerance      numeric
 #' @param maxIterations  integer
 #' @param threshold      numeric
 #' @param delta          numeric
+#' @param nTries         If `penalty` is `auto`, how many penalties to include in grid search
 #'
 #' @examples
 #' model.lr <- setLassoLogisticRegression()
@@ -194,21 +196,23 @@ setIterativeHardThresholding<- function(
   tolerance = 1e-08,
   maxIterations = 10000,
   threshold = 1e-06, 
-  delta = 0
+  delta = 0,
+  nTries = 10
   ){
   
   ensure_installed("IterativeHardThresholding")
   
   if(K<1)
     stop('Invalid maximum number of predictors')
-  if(!(penalty %in% c("aic", "bic") || is.numeric(penalty)))
-    stop('Penalty must be "aic", "bic" or numeric')
+  if(!(penalty %in% c("aic", "bic", "auto") || is.numeric(penalty)))
+    stop('Penalty must be "aic", "bic", "auto" or numeric')
   if(!is.logical(forceIntercept))
     stop("forceIntercept must be of type: logical")
   if(!is.logical(fitBestSubset))
     stop("fitBestSubset must be of type: logical")
   if(!inherits(x = seed, what = c('numeric','NULL','integer')))
     stop('Invalid seed')
+  
 
 
   # set seed
@@ -241,6 +245,12 @@ setIterativeHardThresholding<- function(
     seed = seed[1],
     name = "Iterative Hard Thresholding"
   )
+  
+  if (penalty == "auto") {
+    attr(param, 'settings')$manualCV <- TRUE
+    attr(param, 'settings')$useControl <- FALSE
+    attr(param, 'settings')$nTries <- nTries
+  }
   
   attr(param, 'modelType') <- 'binary' 
   attr(param, 'saveType') <- 'RtoJson'

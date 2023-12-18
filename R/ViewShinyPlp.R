@@ -50,7 +50,7 @@ viewPlp <- function(runPlp, validatePlp = NULL, diagnosePlp = NULL) {
     runPlp = runPlp, 
     externalValidatePlp = validatePlp,
     diagnosePlp = diagnosePlp
-    )
+  )
   
   connectionDetailSettings <- list(
     dbms = 'sqlite',
@@ -69,7 +69,7 @@ viewPlp <- function(runPlp, validatePlp = NULL, diagnosePlp = NULL) {
   )
   
   viewPlps(databaseSettings)
-
+  
 }
 
 
@@ -88,14 +88,14 @@ viewPlp <- function(runPlp, validatePlp = NULL, diagnosePlp = NULL) {
 #' 
 #' @export
 viewDatabaseResultPlp <- function(
-  mySchema, 
-  myServer, 
-  myUser, 
-  myPassword, 
-  myDbms, 
-  myPort = NULL, 
-  myTableAppend
-  ){
+    mySchema, 
+    myServer, 
+    myUser, 
+    myPassword, 
+    myDbms, 
+    myPort = NULL, 
+    myTableAppend
+){
   
   connectionDetailSettings <- list(
     dbms = myDbms,
@@ -132,19 +132,49 @@ viewPlps <- function(databaseSettings){
   connectionDetails <- do.call(
     DatabaseConnector::createConnectionDetails, 
     databaseSettings$connectionDetailSettings
-    )
+  )
   connection <- ResultModelManager::ConnectionHandler$new(connectionDetails)
   databaseSettings$connectionDetailSettings <- NULL
   
-  # set database settings into system variables
-  Sys.setenv("resultDatabaseDetails_prediction" = as.character(ParallelLogger::convertSettingsToJson(databaseSettings)))
-
-  config <- ParallelLogger::loadSettingsFromJson(
-    fileName = system.file(
-      'shinyConfig.json', 
-      package = "PatientLevelPrediction"
-    )
-      )
+  shinyAppVersion <- strsplit(x = as.character(utils::packageVersion('ShinyAppBuilder')), split = '\\.')[[1]]
   
-  ShinyAppBuilder::viewShiny(config = config, connection = connection)
+  if((shinyAppVersion[1] <= 1 & shinyAppVersion[2] < 2)){
+    # Old code to be backwards compatable
+    config <- ParallelLogger::loadSettingsFromJson(
+      fileName = system.file(
+        'shinyConfig.json', 
+        package = "PatientLevelPrediction"
+      )
+    )
+    # set database settings into system variables
+    Sys.setenv("resultDatabaseDetails_prediction" = as.character(ParallelLogger::convertSettingsToJson(databaseSettings)))
+    ShinyAppBuilder::viewShiny(
+      config = config, 
+      connection = connection
+    )
+  } else{
+    ohdsiModulesVersion <- strsplit(x = as.character(utils::packageVersion('OhdsiShinyModules')), split = '\\.')[[1]]
+    if(paste0(ohdsiModulesVersion[1], ".", ohdsiModulesVersion[2])>= 1.2){
+      config <- ParallelLogger::loadSettingsFromJson(
+        fileName = system.file(
+          'shinyConfigUpdate.json', 
+          package = "PatientLevelPrediction"
+        )
+      )
+      databaseSettings$plpTablePrefix = databaseSettings$tablePrefix
+      databaseSettings$cgTablePrefix = databaseSettings$tablePrefix
+      databaseSettings$databaseTable = 'database_meta_table'
+      databaseSettings$databaseTablePrefix = databaseSettings$tablePrefix
+      ShinyAppBuilder::viewShiny(
+        config = config, 
+        connection = connection, 
+        resultDatabaseSettings = databaseSettings
+      )
+    } else{
+      ParallelLogger::logWarn('Need to update package OhdsiShinyModules')
+    }
+    
+  }
+  
+  
 }

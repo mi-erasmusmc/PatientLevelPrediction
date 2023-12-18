@@ -10,7 +10,6 @@
 #     http://www.apache.org/licenses/LICENSE-2.0
 # 
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
@@ -42,41 +41,13 @@ createFeatureEngineeringSettings <- function(type = 'none'){
 }
 
 
-#' Create the settings for defining any feature selection that will be done
-#'
-#' @details
-#' Returns an object of class \code{featureEngineeringSettings} that specifies the sampling function that will be called and the settings
-#'
-#' @param k              This function returns the K features most associated (univariately) to the outcome
-#'
-#' @return
-#' An object of class \code{featureEngineeringSettings}
-#' @export
-createUnivariateFeatureSelection <- function(k = 100){
-  
-  if (inherits(k, 'numeric')) {
-    k <- as.integer(k)
-  }
-  
-  checkIsClass(k, 'integer')
-  checkHigherEqual(k, 0)
-  
-  featureEngineeringSettings <- list(k = k) 
-  
-  attr(featureEngineeringSettings, "fun") <- "univariateFeatureSelection"
-  class(featureEngineeringSettings) <- "featureEngineeringSettings"
-  
-  return(featureEngineeringSettings)
-  
-}
-
 #' Create the settings for random foreat based feature selection
 #'
 #' @details
 #' Returns an object of class \code{featureEngineeringSettings} that specifies the sampling function that will be called and the settings
 #'
-#' @param ntrees              number of tree in forest
-#' @param maxDepth            MAx depth of each tree
+#' @param ntrees              Number of tree in forest
+#' @param maxDepth            Max depth of each tree
 #'
 #' @return
 #' An object of class \code{featureEngineeringSettings}
@@ -99,72 +70,11 @@ createRandomForestFeatureSelection <- function(ntrees = 2000, maxDepth = 17){
   return(featureEngineeringSettings)
 }
 
-univariateFeatureSelection <- function(
-  trainData, 
-  featureEngineeringSettings,
-  covariateIdsInclude = NULL){
-  
-  if(is.null(covariateIdsInclude)){
-    #convert data into matrix:
-    mappedData <- toSparseM(trainData, trainData$labels)
-    
-    matrixData <- mappedData$dataMatrix
-    labels <- mappedData$labels
-    covariateMap <- mappedData$covariateMap
-    
-    X <- reticulate::r_to_py(matrixData)
-    y <- reticulate::r_to_py(labels[,'outcomeCount'])
-    
-    np <- reticulate::import('numpy')
-    os <- reticulate::import('os')
-    sys <- reticulate::import('sys')
-    math <- reticulate::import('math')
-    scipy <- reticulate::import('scipy')
-    
-    sklearn <- reticulate::import('sklearn')
-    
-    SelectKBest <- sklearn$feature_selection$SelectKBest
-    chi2 <- sklearn$feature_selection$chi2
-    
-    kbest <- SelectKBest(chi2, k = featureEngineeringSettings$k)$fit(X, y$outcomeCount)
-    kbest$scores_ <- np$nan_to_num(kbest$scores_)
-
-    # taken from sklearn code, matches the application during transform call
-    k <- featureEngineeringSettings$k
-    mask <- np$zeros(length(kbest$scores_), dtype='bool')
-    mask[np$argsort(kbest$scores_, kind="mergesort")+1][(length(kbest$scores_)-k+1):length(kbest$scores_)] <- TRUE
-    
-    covariateIdsInclude <- covariateMap[mask,]$covariateId
-  }
-  
-  trainData$covariateData$covariates <- trainData$covariateData$covariates %>% 
-    dplyr::filter(.data$covariateId %in% covariateIdsInclude)
-  
-  trainData$covariateData$covariateRef <- trainData$covariateData$covariateRef %>% 
-    dplyr::filter(.data$covariateId %in% covariateIdsInclude)
-  
-  featureEngineering <- list(
-    funct = 'univariateFeatureSelection',
-    settings = list(
-      featureEngineeringSettings = featureEngineeringSettings,
-      covariateIdsInclude = covariateIdsInclude
-    )
-  )
-  
-  attr(trainData, 'metaData')$featureEngineering = listAppend(
-    attr(trainData, 'metaData')$featureEngineering,
-    featureEngineering
-  )
-  
-  return(trainData)
-  
-}
-
 
 randomForestFeatureSelection <- function(
   trainData, 
   featureEngineeringSettings,
-  covariateIdsInclude = NULL
+  covariateIdsInclude = NULL # equivalent to covariateIdsSelected in VariableSelection.R
 ){
   
   if(is.null(covariateIdsInclude)){
@@ -231,7 +141,7 @@ randomForestFeatureSelection <- function(
 }
 
 
-
+# Help function to apply any feature engineering method
 featureEngineer <- function(data, featureEngineeringSettings){
   
   ParallelLogger::logInfo('Starting Feature Engineering')

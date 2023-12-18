@@ -16,216 +16,287 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#' Selects features based on univariate statistics
-#' 
+
+#' Create settings using normalized joint mutual information maximization (NJMIM) for feature selection
+#' @param k number of variables to select, default `20`
+#' @export
+njmimSettings <- function(k = 20) {
+  
+  ensure_installed('praznik')
+  
+  checkIsClass(k, c('integer', 'numeric'))
+  checkHigherEqual(k, 0)
+  
+  featureEngineeringSettings <- list(k = k) 
+  
+  attr(featureEngineeringSettings, "fun") <- "njmimFeatureSelection"
+  class(featureEngineeringSettings) <- "featureEngineeringSettings"
+  
+  return(featureEngineeringSettings)
+}
+
+njmimFeatureSelection <- function(trainData,
+                                  featureEngineeringSettings,
+                                  covariateIdsSelected = NULL) {
+  if (is.null(covariateIdsSelected)) {
+    sparseData <- toSparseM(trainData, trainData$labels)
+    denseMatrix <- as.matrix(sparseData$dataMatrix)
+    dataFrame <- as.data.frame(denseMatrix)
+    y <- sparseData$labels$outcomeCount
+    
+    if (ncol(dataFrame) > featureEngineeringSettings$k) {
+      selection <- praznik::NJMIM(X = dataFrame, 
+                                  Y = y,
+                                  k = featureEngineeringSettings$k)
+      
+      covariateIdsSelected <- sparseData$covariateMap %>%
+        dplyr::filter(columnId %in% selection$selection) %>%
+        dplyr::pull(covariateId)
+    } else {
+      # return all covariates
+      covariateIdsSelected <- sparseData$covariateMap %>% 
+        dplyr::pull(covariateId)
+    }
+    
+  }
+  
+  trainData$covariateData$covariates <- trainData$covariateData$covariates %>%
+    dplyr::filter(covariateId %in% covariateIdsSelected)
+  trainData$covariateData$covariateRef <- trainData$covariateData$covariateRef %>%
+    dplyr::filter(covariateId %in% covariateIdsSelected)
+  
+  featureEngineering <- list(
+    funct = 'njmimFeatureSelection',
+    settings = list(
+      featureEngineeringSettings = featureEngineeringSettings,
+      covariateIdsSelected = covariateIdsSelected
+    )
+  )
+  
+  attr(trainData, 'metaData')$featureEngineering = listAppend(
+    attr(trainData, 'metaData')$featureEngineering,
+    featureEngineering
+  )
+  
+  return(trainData)
+}
+
+#' Create settings using univariate statistics for feature selection
 #' @param corMethod which type of correlation to use, `pearson`, `kendall` or `spearman`. default `pearson`
-#' @param modelSettings settings of model to use in fit after selecting variables
-#' @param nVariables amount of variables to select, default `50`
+#' @param k number of variables to select, default `20`
 #'
 #' @export
-setUnivariateSelection <- function(modelSettings = PatientLevelPrediction::setLassoLogisticRegression(),
-                                   corMethod = "pearson",
-                                   nVariables = 50) { # TODO: set dynamic number based on elbow
+univariateSettings <- function(k = 20, # TODO: set dynamic number based on elbow
+                               corMethod = "pearson"){
   
-  checkIsClass(nVariables, c('numeric','integer'))
+  if (inherits(k, 'numeric')) {
+    k <- as.integer(k)
+  }
+  
+  checkIsClass(k, 'integer')
+  checkHigherEqual(k, 0)
+  
   if (!corMethod %in% c("pearson", "kendall", "spearman")) {
     stop("corMethod needs to be either 'pearson', 'kendall' or 'spearman'")
   }
-  # TODO: add class checks input (modelSettings, corMethod)?
   
-  param <- list(
-    modelSettings = modelSettings,
-    param = list(
-      corMethod = corMethod,
-      nVariables = nVariables
+  featureEngineeringSettings <- list(corMethod = corMethod,
+                                     k = k) 
+  
+  attr(featureEngineeringSettings, "fun") <- "univariateFeatureSelection"
+  class(featureEngineeringSettings) <- "featureEngineeringSettings"
+  
+  return(featureEngineeringSettings)
+}
+
+
+univariateFeatureSelection <- function(trainData,
+                                       featureEngineeringSettings,
+                                       covariateIdsSelected = NULL) {
+  if (is.null(covariateIdsSelected)) {
+    sparseData <- toSparseM(trainData, trainData$labels)
+    denseMatrix <- as.matrix(sparseData$dataMatrix)
+    dataFrame <- as.data.frame(denseMatrix)
+    y <- sparseData$labels$outcomeCount
+    
+    if (ncol(dataFrame) > featureEngineeringSettings$k) {
+      # Select features based on univariate association with outcome
+      correlation <- sapply(1:ncol(dataFrame), function(col) {
+        stats::cor(dataFrame[,col], y, method = featureEngineeringSettings$corMethod)
+      })
+      names(correlation) <- 1:ncol(dataFrame)
+      
+      # Order from high to low absolute correlation
+      correlation <-  correlation[order(abs(correlation), decreasing = TRUE)]
+      
+      # Select variables
+      selected <- names(correlation)[1:min(featureEngineeringSettings$k, length(correlation))]
+      
+      covariateIdsSelected <- sparseData$covariateMap %>%
+        dplyr::filter(columnId %in% selected) %>%
+        dplyr::pull(covariateId)
+      
+    } else {
+      # return all covariates
+      covariateIdsSelected <- sparseData$covariateMap %>% 
+        dplyr::pull(covariateId)
+    }
+  }
+  
+  trainData$covariateData$covariates <- trainData$covariateData$covariates %>%
+    dplyr::filter(covariateId %in% covariateIdsSelected)
+  trainData$covariateData$covariateRef <- trainData$covariateData$covariateRef %>%
+    dplyr::filter(covariateId %in% covariateIdsSelected)
+  
+  featureEngineering <- list(
+    funct = 'univariateFeatureSelection',
+    settings = list(
+      featureEngineeringSettings = featureEngineeringSettings,
+      covariateIdsSelected = covariateIdsSelected
     )
   )
   
-  result <- list(
-    fitFunction = "fitUnivariateSelection",
-    param = param
+  attr(trainData, 'metaData')$featureEngineering = listAppend(
+    attr(trainData, 'metaData')$featureEngineering,
+    featureEngineering
   )
-  class(result) <- "modelSettings"
   
-  return(result)
+  return(trainData)
 }
 
-fitUnivariateSelection <- function(
-    trainData,
-    modelSettings,
-    search = 'none',
-    analysisId,
-    stop = F,
-    ...) {
-  
-  # Settings variable selection
-  param <- modelSettings$param$param
-  
-  covariates <- as.data.frame(trainData$covariateData$covariates)
-  
-  if (length(unique(covariates$covariateId)) > param$nVariables) {
-    outcomes <- trainData$labels[, c("rowId", "outcomeCount")]
-    
-    # Select features based on univariate association with outcome
-    correlation <- sapply(unique(covariates$covariateId), function(covId) {
-      stats::cor(ifelse(outcomes$rowId %in% covariates$rowId[covariates$covariateId == covId], 1, 0), # TODO: can this be done smarter for sparse data
-          outcomes$outcomeCount, 
-          method = param$corMethod)
-    })
-    names(correlation) <- unique(covariates$covariateId)
-    
-    # Order from high to low absolute correlation
-    correlation <-  correlation[order(abs(correlation), decreasing = TRUE)]
-    
-    # Select variables
-    selected <- names(correlation)[1:min(param$nVariables, length(correlation))]
-    
-    # Update covariate data
-    trainData$covariateData <- updateCovariateData(trainData$covariateData, covIds=selected, update="select")
-    
-    ParallelLogger::logTrace('Finished variable selection.')
-  } else {
-    ParallelLogger::logTrace('No variable selection, number of covariates less than or equal to nVariables.')
-  }
-  
-  # Fit final PLP model
-  fun <- eval(parse(text = modelSettings$param$modelSettings$fitFunction))
-  args <- list(
-    trainData = trainData,
-    modelSettings = modelSettings$param$modelSettings,
-    search = search,
-    analysisId = analysisId
-  )
-  plpModel <- do.call(fun, args)
-  
-  return(plpModel)
-}
 
-#' Selects features using stepwise selection
-#'
-#' @param modelSettings settings of model to use in fit after selecting variables
+
+#' Create settings using stepwise selection for feature selection
+#' @param k number of variables to select, default `20`
 #' @param selectMethod `backward` or `forward` selection
-#' @param nInitialVariables # of variables to select initially
-#' @param nVariables amount of variables to select, default `20`
+#' @param kStart number of variables to select initially
 #' @param stepSize  How many variables to add/remove in each step
-#'
+#' @param modelSettings settings of model to use in fit after selecting variables
 #' @export
-setStepwiseSelection <- function(modelSettings,
-                                 selectMethod = "backward",
-                                 nInitialVariables = 50, # TODO: set dynamic number based on elbow
-                                 nVariables = 20, # TODO: set dynamic number based on elbow
-                                 stepSize = 1) { 
+stepwiseSettings <- function(k = 20, # TODO: set dynamic number based on elbow
+                             selectMethod = "backward",
+                             kStart = 100, # TODO: set dynamic number based on elbow
+                             stepSize = 1,
+                             modelSettings = PatientLevelPrediction::setLassoLogisticRegression()) {
   
-  checkIsClass(nInitialVariables, c('numeric','integer'))
-  checkIsClass(nVariables, c('numeric','integer'))
-  checkIsClass(stepSize, c('numeric','integer'))
+  checkIsClass(k, c('integer', 'numeric'))
+  checkHigherEqual(k, 0)
+  
   if (!selectMethod %in% c("forward", "backward")) {
     stop("selectMethod needs to be either 'forward' or 'backward")
   }
-  # TODO: add class checks input (modelSettings, selectMethod)?
   
-  param <- list(
-    modelSettings = PatientLevelPrediction::setLassoLogisticRegression(),
-    param = list(
-      selectMethod = selectMethod,
-      nInitialVariables = nInitialVariables, # For classifiers with initial selection based on variable importance
-      nVariables = nVariables,
-      stepSize = stepSize # Number of variables removed at the same time
+  checkIsClass(kStart, c('integer', 'numeric'))
+  checkHigherEqual(kStart, 0)
+  
+  checkIsClass(stepSize, c('integer', 'numeric'))
+  checkHigherEqual(stepSize, 0)
+  
+  featureEngineeringSettings <- list(k = k,
+                                     selectMethod = selectMethod,
+                                     kStart = kStart,
+                                     stepSize = stepSize,
+                                     modelSettings = modelSettings) 
+  
+  attr(featureEngineeringSettings, "fun") <- "stepwiseFeatureSelection"
+  class(featureEngineeringSettings) <- "featureEngineeringSettings"
+  
+  return(featureEngineeringSettings)
+}
+
+
+stepwiseFeatureSelection <- function(trainData,
+                                     featureEngineeringSettings,
+                                     covariateIdsSelected = NULL) {
+  if (is.null(covariateIdsSelected)) {
+    search <- 999 # TODO: which number to use?
+    analysisId <- 999 # TODO: which number to use?
+    
+    # Initial fit PLP model
+    fun <- eval(parse(text = featureEngineeringSettings$modelSettings$fitFunction))
+    args <- list(
+      trainData = trainData,
+      modelSettings = featureEngineeringSettings$modelSettings,
+      search = search,
+      analysisId = analysisId
+    )
+    plpModel <- do.call(fun, args)
+    
+    if (featureEngineeringSettings$selectMethod == "backward") {
+      # Initial selection
+      # Select non-zero coefficients for LASSO
+      covIds <- plpModel$model$coefficients$covariateIds[plpModel$model$coefficients$betas != 0] 
+      
+      # TODO: make generic across algorithms based on var importance (e.g. randomForest)
+      # covIds <- TODO
+      
+      fullCovariates <- NULL
+      updateIteration <- "remove"
+      
+    } else if (featureEngineeringSettings$selectMethod == "forward") {
+      # Initial selection (empty)
+      covIds <- NULL
+      
+      fullCovariates <- as.data.frame(trainData$covariateData$covariates)
+      updateIteration <- "add"
+      
+    } else {
+      stop("Variable selection stopped: selectMethod not implemented.")
+    }
+    
+    update <- "select" # Only first update of covariates
+    update_trainData <- trainData
+    
+    while(!is.null(covIds) | update == "select") { # Stop when selected is NULL
+      # Update covariate data
+      update_trainData$covariateData <- updateCovariateData(update_trainData$covariateData, covIds=covIds, update=update, fullCovariates=fullCovariates)
+      
+      # Backward or forward select variables
+      update <- updateIteration 
+      covIds <- selectVariables(featureEngineeringSettings, update_trainData, fullCovariates, search, analysisId)
+    }
+    
+    covariates <- as.data.frame(update_trainData$covariateData$covariates)
+    covariateIdsSelected <- unique(covariates$covariateId)
+  }
+  
+  trainData$covariateData$covariates <- trainData$covariateData$covariates %>%
+    dplyr::filter(covariateId %in% covariateIdsSelected)
+  trainData$covariateData$covariateRef <- trainData$covariateData$covariateRef %>%
+    dplyr::filter(covariateId %in% covariateIdsSelected)
+  
+  featureEngineering <- list(
+    funct = 'univariateFeatureSelection',
+    settings = list(
+      featureEngineeringSettings = featureEngineeringSettings,
+      covariateIdsSelected = covariateIdsSelected
     )
   )
   
-  result <- list(
-    fitFunction = "fitStepwiseSelection",
-    param = param
+  attr(trainData, 'metaData')$featureEngineering = listAppend(
+    attr(trainData, 'metaData')$featureEngineering,
+    featureEngineering
   )
-  class(result) <- "modelSettings"
   
-  return(result)
+  return(trainData)
 }
 
-
-fitStepwiseSelection <- function(
-    trainData,
-    modelSettings,
-    search = 'none',
-    analysisId,
-    stop = F,
-    ...) {
-  
-  # Initial fit PLP model
-  fun <- eval(parse(text = modelSettings$param$modelSettings$fitFunction))
-  args <- list(
-    trainData = trainData,
-    modelSettings = modelSettings$param$modelSettings,
-    search = search,
-    analysisId = analysisId
-  )
-  plpModel <- do.call(fun, args)
-  
-  if (modelSettings$param$param$selectMethod == "backward") {
-    # Initial selection
-    # Select non-zero coefficients for LASSO
-    covIds <- plpModel$model$coefficients$covariateIds[plpModel$model$coefficients$betas != 0] 
-    
-    # TODO: make generic across algorithms based on var importance (e.g. randomForest)
-    # covIds <- TODO
-    
-    fullCovariates <- NULL
-    updateIteration <- "remove"
-    
-  } else if (modelSettings$param$param$selectMethod == "forward") {
-    # Initial selection (empty)
-    covIds <- NULL
-    
-    fullCovariates <- as.data.frame(trainData$covariateData$covariates)
-    updateIteration <- "add"
-    
-  } else {
-    stop("Variable selection stopped: selectMethod not implemented.")
-  }
-  
-  update <- "select" # Only first update of covariates
-  while(!is.null(covIds) | update == "select") { # Stop when selected is NULL
-    # Update covariate data
-    trainData$covariateData <- updateCovariateData(trainData$covariateData, covIds=covIds, update=update, fullCovariates=fullCovariates)
-    
-    # Backward or forward select variables
-    update <- updateIteration 
-    covIds <- selectVariables(modelSettings, trainData, fullCovariates, search, analysisId)
-  }
-  
-  ParallelLogger::logTrace('Finished variable selection.')
-  
-  # Fit final PLP model
-  fun <- eval(parse(text = modelSettings$param$modelSettings$fitFunction))
-  args <- list(
-    trainData = trainData,
-    modelSettings = modelSettings$param$modelSettings,
-    search = search,
-    analysisId = analysisId
-  )
-  plpModel <- do.call(fun, args)
-  
-  return(plpModel)
-}
-
-selectVariables <- function(modelSettings, trainData, fullCovariates, search, analysisId) {
+# Help function stepwiseFeatureSelection
+selectVariables <- function(featureEngineeringSettings, trainData, fullCovariates, search, analysisId) {
   
   # Settings variable selection
-  param <- modelSettings$param$param
-  
   covariates <- as.data.frame(trainData$covariateData$covariates)
   
-  if (param$selectMethod == "backward") {
+  if (featureEngineeringSettings$selectMethod == "backward") {
     update <- "remove"
-    start <- (length(unique(covariates$covariateId)) > param$nVariables) # Too many variables
+    start <- (length(unique(covariates$covariateId)) > featureEngineeringSettings$k) # Too many variables
     covariateList <- unique(covariates$covariateId)
-  } else if (param$selectMethod == "forward") {
+  } else if (featureEngineeringSettings$selectMethod == "forward") {
     update <- "add"
-    start <- (length(unique(covariates$covariateId)) < param$nVariables) # Not enough variables
+    start <- (length(unique(covariates$covariateId)) < featureEngineeringSettings$k) # Not enough variables
     covariateList <- unique(fullCovariates$covariateId)[!(unique(fullCovariates$covariateId) %in% unique(covariates$covariateId))]
   }
-  # TODO: make correction for param$stepSize to come to exactly the right number of variables
+  # TODO: make correction for featureEngineeringSettings$stepSize to come to exactly the right number of variables
   
   if (start) {
     performance <- sapply(covariateList, function(covId) {
@@ -234,10 +305,10 @@ selectVariables <- function(modelSettings, trainData, fullCovariates, search, an
       tempData$covariateData <- updateCovariateData(tempData$covariateData, covIds=covId, update=update, fullCovariates=fullCovariates)
       
       # Re-fit PLP model
-      fun <- eval(parse(text = modelSettings$param$modelSettings$fitFunction))
+      fun <- eval(parse(text = featureEngineeringSettings$modelSettings$fitFunction))
       args <- list(
         trainData = tempData,
-        modelSettings = modelSettings$param$modelSettings,
+        modelSettings = featureEngineeringSettings$modelSettings,
         search = search,
         analysisId = analysisId
       )
@@ -251,19 +322,19 @@ selectVariables <- function(modelSettings, trainData, fullCovariates, search, an
     })
     names(performance) <- covariateList
     
-    if (param$selectMethod == "backward") {
+    if (featureEngineeringSettings$selectMethod == "backward") {
       # Order from low to high performance (minimum negative log likelihood is high)
       performance <- performance[order(performance, decreasing = TRUE)]
       
       # Select variables to remove
-      covIds <- names(performance)[1:min(param$stepSize, length(performance))]
+      covIds <- names(performance)[1:min(featureEngineeringSettings$stepSize, length(performance))]
       
-    } else if (param$selectMethod == "forward") {
+    } else if (featureEngineeringSettings$selectMethod == "forward") {
       # Order from high to low performance (minimum negative log likelihood is high)
       performance <- performance[order(performance, decreasing = FALSE)]
       
       # Select variables to add
-      covIds <- names(performance)[1:min(param$stepSize, length(performance))]
+      covIds <- names(performance)[1:min(featureEngineeringSettings$stepSize, length(performance))]
     }
     
     return(covIds)
@@ -272,6 +343,7 @@ selectVariables <- function(modelSettings, trainData, fullCovariates, search, an
   return(NULL) # Return NULL to initiate stop
 }
 
+# Help function stepwiseFeatureSelection
 updateCovariateData <- function(covariateData, covIds, update="select", fullCovariates=NULL) {
   # FeatureExtraction -> excludedCovariateConceptIds: A list of concept IDs that should NOT be used to construct covariates.
   newCovariates <- as.data.frame(covariateData$covariates) # TODO: try without
@@ -304,3 +376,142 @@ updateCovariateData <- function(covariateData, covIds, update="select", fullCova
 }
 
 
+#' Create the settings for Boruta feature selection
+#'
+#' @details
+#' From: https://doi.org/10.18637/jss.v036.i11
+#'
+#' @param nJobs       How many jobs to do in parallel
+#' @param maxDepth    Max depth of each tree in the RandomForest used
+#' @param nTrees      How many trees to use, default is `auto`
+#' @param verbosity   0 for silent, 1 to display iteration number, 2 to display features selected as well
+#' @param iterations  How many iterations to run `Boruta` for. Default: 100
+#' @param randomState Either `NULL` or an integer. If integer it is the seed used by the random number generator
+#'
+#' @return
+#' An object of class \code{featureEngineeringSettings}
+#' @export
+borutaSettings <- function(nJobs = -1L, 
+                           maxDepth = 5L,
+                           nTrees = "auto",
+                           verbosity = 2L,
+                           iterations = 100L,
+                           randomState = 42L
+){
+  # check python environment
+  tryCatch(reticulate::import('numpy'), error = function(e) stop("Numpy must be available in python environment"))
+  tryCatch(reticulate::import('boruta'), error= function(e) stop("Boruta must be installed in the python environment"))
+  tryCatch(reticulate::import('sklearn'), error= function(e) stop("sklearn must be installed in the python environment"))
+  
+  # check input variables  
+  if (inherits(nJobs, "numeric")) {
+    nJobs <- as.integer(nJobs)
+  }
+  if (inherits(maxDepth, "numeric")) {
+    maxDepth <- as.integer(maxDepth)
+  }
+  if (inherits(nTrees, "numeric")) {
+    nTrees <- as.integer(nTrees)
+  }
+  if (inherits(verbosity, "numeric")) {
+    verbosity <- as.integer(verbosity)
+  }
+  if (inherits(iterations, "numeric")) {
+    iterations <- as.integer(iterations)
+  }
+  if (inherits(randomState, "numeric")) {
+    randomState <- as.integer(randomState)
+  }
+  
+  
+  checkIsClass(nTrees, c('integer', "character"))
+  checkIsClass(maxDepth, c('integer'))
+  checkIsClass(randomState, c("integer", "NULL"))
+  if (inherits(nTrees, c("integer"))) {
+    checkHigher(nTrees, 0)  
+  } else {
+    if (nTrees != "auto") {
+      stop("nTrees should be either an integer or 'auto'")
+    }
+  } 
+  checkHigher(maxDepth, 0)
+  checkHigher(iterations, 0)
+  
+  if (!verbosity %in% c(0L, 1L, 2L)) {
+    stop(paste0("verbosity must be one of 0, 1, 2. You supplied: ", verbosity))
+  }
+  
+  featureEngineeringSettings <- list(
+    nTrees = nTrees,
+    maxDepth = maxDepth,
+    iterations = iterations,
+    verbosity = verbosity,
+    randomState = randomState,
+    nJobs = nJobs
+  )
+  
+  attr(featureEngineeringSettings, "fun") <- "borutaFeatureSelection"
+  class(featureEngineeringSettings) <- "featureEngineeringSettings"
+  
+  return(featureEngineeringSettings)
+}
+
+borutaFeatureSelection <- function(
+    trainData, 
+    featureEngineeringSettings,
+    covariateIdsSelected = NULL
+){
+  
+  if(is.null(covariateIdsSelected)){
+    sparseData <- toSparseM(trainData)
+    dataMatrix <- sparseData$dataMatrix
+    covariateMap <- sparseData$covariateMap
+    
+    X <- reticulate::r_to_py(dataMatrix)
+    y <- reticulate::r_to_py(matrix(sparseData$labels$outcomeCount, ncol=1))
+    
+    sklearn <- reticulate::import('sklearn')
+    BorutaPy <- reticulate::import('boruta')$BorutaPy
+    
+    rf = sklearn$ensemble$RandomForestClassifier(
+      max_depth = featureEngineeringSettings$maxDepth,
+      n_jobs = featureEngineeringSettings$nJobs, 
+    )
+    
+    featureSelector <- BorutaPy(rf, n_estimators=featureEngineeringSettings$nTrees,
+                                verbose=featureEngineeringSettings$verbosity, 
+                                random_state=featureEngineeringSettings$randomState,
+                                max_iter=featureEngineeringSettings$iterations)
+    
+    featureSelector$fit(X, y$squeeze())
+    
+    includedFeatures <- featureSelector$support_
+    
+    covariateIdsSelected <- covariateMap %>% 
+      dplyr::filter(.data$columnId %in% which(includedFeatures)) %>%
+      dplyr::select("covariateId") %>% dplyr::arrange("covariateId") %>%
+      dplyr::pull()
+  } 
+  
+  trainData$covariateData$covariates <- trainData$covariateData$covariates %>% 
+    dplyr::filter(.data$covariateId %in% covariateIdsSelected)
+  
+  trainData$covariateData$covariateRef <- trainData$covariateData$covariateRef %>% 
+    dplyr::filter(.data$covariateId %in% covariateIdsSelected)
+  
+  featureEngineering <- list(
+    funct = 'borutaFeatureSelection',
+    settings = list(
+      featureEngineeringSettings = featureEngineeringSettings,
+      covariateIdsSelected = covariateIdsSelected
+    )
+  )
+  
+  attr(trainData, 'metaData')$featureEngineering = listAppend(
+    attr(trainData, 'metaData')$featureEngineering,
+    featureEngineering
+  )
+  
+  return(trainData)
+  
+}
