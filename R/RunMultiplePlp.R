@@ -175,7 +175,7 @@ runMultiplePlp <- function(
         if(!analysisExists){
           plpData <- PatientLevelPrediction::loadPlpData(file.path(saveDirectory, settings$dataLocation))
           runPlpSettings <- list(
-            plpData = plpData,
+            plpData = quote(plpData),
             outcomeId = modelDesign$outcomeId,
             analysisId = settings$analysisId,
             populationSettings = modelDesign$populationSettings,
@@ -505,7 +505,8 @@ validateMultiplePlp <- function(
             validationDatabaseDetails = validationDatabaseDetails,
             validationRestrictPlpDataSettings = validationRestrictPlpDataSettings,
             settings = createValidationSettings(
-              recalibrate = recalibrate
+              recalibrate = recalibrate,
+              runCovariateSummary = F
             ),
             outputFolder = saveLocation
           )},

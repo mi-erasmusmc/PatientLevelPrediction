@@ -30,8 +30,9 @@
 #' @param cohortTable  the table name that contains the target population cohort
 #' @param rowIdField  string representing the unique identifier in the target population cohort
 #' @param aggregated  whether the covariate should be aggregated
-#' @param cohortId  cohort id for the target cohort
+#' @param cohortIds  cohort id for the target cohort
 #' @param covariateSettings  settings for the covariate cohorts and time periods
+#' @param ...  additional arguments from FeatureExtraction
 #'
 #' @return
 #' The models will now be in the package
@@ -45,8 +46,9 @@ getCohortCovariateData <- function(
   cohortTable = "#cohort_person",
   rowIdField = "row_id",
   aggregated,
-  cohortId,
-  covariateSettings
+  cohortIds,
+  covariateSettings,
+  ...
   ){
   
   # Some SQL to construct the covariate:
@@ -69,7 +71,7 @@ getCohortCovariateData <- function(
     sql,
     covariate_cohort_schema = covariateSettings$cohortDatabaseSchema,
     covariate_cohort_table = covariateSettings$cohortTable,
-    covariate_cohort_id = covariateSettings$cohortId,
+    covariate_cohort_id = covariateSettings$cohortIds,
     cohort_temp_table = cohortTable,
     row_id_field = rowIdField,
     startDay = covariateSettings$startDay,
@@ -191,7 +193,7 @@ createCohortCovariateSettings <- function(
     covariateId = cohortId*100000+settingId*1000+analysisId,
     cohortDatabaseSchema = cohortDatabaseSchema,
     cohortTable = cohortTable,
-    cohortId = cohortId,
+    cohortIds = cohortId,
     startDay = startDay,
     endDays = endDay,
     count = count,

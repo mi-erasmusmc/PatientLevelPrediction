@@ -1,3 +1,42 @@
+PatientLevelPrediction 6.3.8
+======================
+- Add support for R4.4 
+- Fix notes around documentation (vignette engine and brackets in itemize)
+- Use webp image format where possible (not in pdfs) for smaller size
+- Make sure random table names are unique in tests
+- Remove remote info for Eunomia since it's in CRAN
+
+PatientLevelPrediction 6.3.7
+======================
+- Clean up dependencies, tibble removed and IHT and ParallelLogger from CRAN
+- Use cohortIds for cohortCovariates to comply with FeatureExtraction
+- Add cdmDatabaseName from DatabaseDetails to model output
+- Fix bug when attributes weren't preserved on trainData$covariateData after split
+- Fix warnings in tests and speed them up
+- Fix bug in assignment operator in configurePython
+- Delay evaluation of plpData when using do.call like in learningCurves and 
+runMultiplePlp
+- Speed up population generation when subjectId's are distinct
+- Fix bug when population was still generated when provided to runPlp
+
+
+PatientLevelPrediction 6.3.6
+======================
+- fix bug with ohdsi shiny modules version check (issue 415)
+
+PatientLevelPrediction 6.3.5
+======================
+- Fix sklearnToJson to be compatible with scikit-learn>=1.3
+- Fix github actions so it's not hardcoded to use python 3.7
+
+
+PatientLevelPrediction 6.3.4
+======================
+- added spline feature engineering 
+- added age/sex stratified imputation feature engineering
+- changed result table execution date types to varchar
+- updated covariateSummary to use feature engineering
+
 PatientLevelPrediction 6.3.3
 ======================
 - fixed bug introduced with new reticulate update in model saving to json tests

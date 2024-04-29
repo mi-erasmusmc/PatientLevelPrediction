@@ -40,7 +40,7 @@
 #'   \code{trainFractions}. Note, providing \code{trainEvents} will override
 #'   your input to \code{trainFractions}. The format should be as follows:
 #'   \itemize{
-#'     \item{ \code{c(500, 1000, 1500) } - a list of training events}
+#'     \item \code{c(500, 1000, 1500) } - a list of training events
 #'   }
 #' @param featureEngineeringSettings An object of \code{featureEngineeringSettings} specifying any feature engineering to be learned (using the train data)                                                        
 #' @param preprocessSettings         An object of \code{preprocessSettings}. This setting specifies the minimum fraction of 
@@ -48,17 +48,12 @@
 #'                                   and whether to normalise the covariates before training  
 #' @param modelSettings              An object of class \code{modelSettings} created using one of the function:
 #'                                         \itemize{
-#'                                         \item{setLassoLogisticRegression()}{ A lasso logistic regression model}
-#'                                         \item{setGradientBoostingMachine()}{ A gradient boosting machine}
-#'                                         \item{setAdaBoost()}{ An ada boost model}
-#'                                         \item{setRandomForest()}{ A random forest model}
-#'                                         \item{setDecisionTree()}{ A decision tree model}
-#'                                         \item{setCovNN())}{ A convolutional neural network model}
-#'                                         \item{setCIReNN()}{ A recurrent neural network model}
-#'                                         \item{setMLP()}{ A neural network model}
-#'                                         \item{setDeepNN()}{ A deep neural network model}
-#'                                         \item{setKNN()}{ A KNN model}
-#'                                         
+#'                                         \item \code{setLassoLogisticRegression()} A lasso logistic regression model
+#'                                         \item \code{setGradientBoostingMachine()} A gradient boosting machine
+#'                                         \item \code{setAdaBoost()} An ada boost model
+#'                                         \item \code{setRandomForest()} A random forest model
+#'                                         \item \code{setDecisionTree()} A decision tree model
+#'                                         \item \code{setKNN()} A KNN model
 #'                                         } 
 #' @param logSettings                An object of \code{logSettings} created using \code{createLogSettings} 
 #'                                   specifying how the logging is done                                                                            
@@ -188,7 +183,7 @@ createLearningCurve <- function(
     nRuns <- length(trainFractions)
     
     settings = list(
-      plpData = plpData,
+      plpData = quote(plpData),
       outcomeId = outcomeId,
       analysisId = analysisId,
       populationSettings = populationSettings,
@@ -238,7 +233,7 @@ createLearningCurve <- function(
 
 lcWrapper <- function(settings){
   plpData <- PatientLevelPrediction::loadPlpData(settings$plpData)
-  settings$plpData <- plpData
+  settings$plpData <- quote(plpData)
   result <- tryCatch({do.call(runPlp, settings)},
                      warning = function(war) {
                        ParallelLogger::logInfo(paste0('a warning: ', war))
@@ -470,8 +465,8 @@ plotLearningCurve <- function(learningCurve,
   
   # create plot object
   plot <- tidyLearningCurve %>%
-    ggplot2::ggplot(ggplot2::aes_string(x = abscissa, y= 'value',
-      col = "Dataset")) +
+    ggplot2::ggplot(ggplot2::aes(x = .data[[abscissa]], y = .data[['value']],
+      col = .data[["Dataset"]])) +
     ggplot2::geom_line() +
     ggplot2::coord_cartesian(ylim = yAxisRange, expand = FALSE) +
     ggplot2::labs(title = plotTitle, subtitle = plotSubtitle, 
