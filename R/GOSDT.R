@@ -57,10 +57,8 @@ setGOSDT <- function(
     paramNames = names(paramGrid), #use this for logging params
     requiresDenseMatrix = T,
     name = "General Optimal Sparse Decision Tree",
-    pythonImport = 'gosdt',
-    pythonImportSecond = 'model',
-    pythonImportThird = 'gosdt',
-    pythonClassifier = 'GOSDT'
+    pythonModule = 'gosdt.model.gosdt',
+    pythonClass = 'GOSDT'
   ) 
   
   attr(param, 'saveToJson') <- F
