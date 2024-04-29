@@ -299,8 +299,9 @@ gridCvPython <- function(
       }
       
       if (pythonClassifier == "GOSDT") { # TODO: check how to add this
+        np <- reticulate::import('numpy')
         trainX <- pd$DataFrame(trainX)
-        trainY <- pd$DataFrame(trainY)
+        trainY <- pd$DataFrame(trainY, dtype=np$int8)
         testX <- pd$DataFrame(testX)
       }
       
@@ -340,7 +341,7 @@ gridCvPython <- function(
   
   if (pythonClassifier == "GOSDT") { # TODO: check how to add this
     trainX <- pd$DataFrame(trainX)
-    trainY <- pd$DataFrame(trainY)
+    trainY <- pd$DataFrame(trainY, dtype=np$int8)
   }
   
   model <- fitPythonModel(classifier, finalParam , seed, trainX, trainY, np, pythonClassifier)
@@ -418,9 +419,9 @@ fitPythonModel <- function(classifier, param, seed, trainX, trainY, np, pythonCl
       param_threshold <- list(nEstimators=as.integer(50),learningRate=0.1, algorithm="SAMME.R",seed=as.integer(100))
       
       clf <- do.call('AdaBoostClassifierInputs', list(classifier = classifier_threshold, param = param_threshold))
-      clf <- clf$fit(trainX_threshold[0], trainY) # TODO: please change the shape of y to (n_samples, )
+      clf <- clf$fit(trainX_threshold[0], np$squeeze(trainY))
       
-      predictionValue  <- clf$predict_proba(trainX_threshold[0])
+      predictionValue  <- clf$predict_proba(trainX_threshold[0]) 
       warm_labels <- reticulate::py_to_r(predictionValue)[,2]
       
       elapsed_time = Sys.time()- start_time
@@ -437,10 +438,9 @@ fitPythonModel <- function(classifier, param, seed, trainX, trainY, np, pythonCl
     model <- classifier()
   }
   
-  model <- model$fit(trainX, trainY) 
+  model <- model$fit(trainX, trainY)
   
-  # print(model$configuration) # TODO: temporary - remove later
-  # print(str(model$tree))
+  ParallelLogger::logWarn(paste0('GOSDT: ', (str(model$tree))))
   
   timeEnd <- Sys.time()
   

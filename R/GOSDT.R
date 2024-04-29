@@ -12,16 +12,18 @@
 #' Adapted from SklearnClassifierSettings.R                    
 #' @export
 setGOSDT <- function(
-    regularization = list(0.05),
+    objective = list("auc"),
+    regularization = list(0.005),
     maxDepth = list(0), # depth_budget
     warmLB = list(TRUE),
-    pathToLabels = list("warm_label.tmp"), # TODO: change
-    timeLimit = list(0),
-    similarSupport = list(TRUE),
-    seed = sample(100000,1) # TODO: not used now
+    pathToLabels = list("warm_label.tmp"),
+    timeLimit = list(3600),
+    similarSupport = list(FALSE),
+    seed = sample(100000,1)
 ){
   
   checkIsClass(seed, c('numeric','integer'))
+  checkIsClass(objective, c('list'))
   checkIsClass(regularization, c('list'))
   checkIsClass(maxDepth, c('list'))
   checkIsClass(warmLB, c('list'))
@@ -38,6 +40,7 @@ setGOSDT <- function(
   
   # add value checks
   paramGrid = list(
+    objective = objective,
     regularization =  regularization,
     maxDepth = maxDepth,
     warmLB = warmLB,
@@ -77,12 +80,14 @@ GOSDTInputs <- function(classifier, param){
   
   model <- classifier(
     configuration=list(
+      objective = param[[which.max(names(param)=='objective')]],
       regularization = param[[which.max(names(param)=='regularization')]],
       depth_budget = param[[which.max(names(param)=='maxDepth')]],
       warm_LB = param[[which.max(names(param)=='warmLB')]],
       path_to_labels = param[[which.max(names(param)=='pathToLabels')]],
       time_limit = param[[which.max(names(param)=='timeLimit')]],
       similar_support = param[[which.max(names(param)=='similarSupport')]],
+      seed = param[[which.max(names(param)=='seed')]],
       verbose = F
     )
   )
