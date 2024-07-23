@@ -33,6 +33,8 @@
 #' @param subsumption 
 #' @param branchBound 
 #' @param parallel 
+#' @param parallelMethod
+#' @param binaryReduction
 #'
 #' @export
 setExplore <- function( # TODO: check default settings
@@ -41,7 +43,7 @@ setExplore <- function( # TODO: check default settings
   startRulelength = 1,
   endRulelength = 3,
   operatorMethod = "EXHAUSTIVE",
-  cutoffMethod = "RVAC",
+  cutoffMethod = "ALL",
   featureInclude = "",
   maximize = "BALANCEDACCURACY",
   accuracy = 0,
@@ -49,11 +51,13 @@ setExplore <- function( # TODO: check default settings
   specificity = 0,
   printSettings = TRUE,
   printPerformance = TRUE,
-  subsumption = TRUE,
+  subsumption = FALSE,
   branchBound = TRUE,
+  sorted = "none",
   parallel = FALSE,
+  parallelMethod = "ONE",
+  binaryReduction = FALSE,
   modelsCurve = FALSE,
-  sort_by = "none",
   saveDirectory = getwd()){
   
   # TODO: check input
@@ -73,8 +77,10 @@ setExplore <- function( # TODO: check default settings
                 subsumption = subsumption,
                 branchBound = branchBound,
                 parallel = parallel,
+                parallelMethod = parallelMethod,
+                binaryReduction = binaryReduction,
                 modelsCurve = modelsCurve,
-                sort_by = sort_by,
+                sorted = sorted,
                 saveDirectory = saveDirectory)
   
   attr(param, 'settings') <- list(
@@ -114,19 +120,17 @@ fitExplore <- function(trainData,
   
   exploreData <- convertToExploreData(trainData, param$variableSelection, search, analysisId, param$saveDirectory)
   
-  exploreData <- sortData(exploreData, sort_by = param$sort_by)
-  
   # train model
   fit <- tryCatch({
     ParallelLogger::logInfo('Running Explore')
     Explore::trainExplore(output_path = file.path(param$saveDirectory, "Explore"), train_data = exploreData,
-                          ClassFeature = "'outcomeCount'", PositiveClass = "1",
+                          ClassFeature = "'outcomeCount'", PositiveClass = '"1"',
                           StartRulelength = param$startRulelength, EndRulelength = param$endRulelength, 
                           OperatorMethod = param$operatorMethod, CutoffMethod = param$cutoffMethod,
                           FeatureInclude = param$featureInclude, Maximize = param$maximize,
                           Accuracy = param$accuracy, BalancedAccuracy = param$balancedAccuracy, Specificity = param$specificity,
                           Subsumption = param$subsumption, BranchBound = param$branchBound,
-                          Parallel = param$parallel)
+                          Sorted = param$sorted, Parallel = param$parallel, ParallelMethod = param$parallelMethod, BinaryReduction = param$binaryReduction)
   },
   finally = ParallelLogger::logInfo('Done.')
   )
@@ -182,7 +186,7 @@ fitExplore <- function(trainData,
                                                                  FeatureInclude = param$featureInclude, Maximize = param$maximize,
                                                                  Accuracy = param$accuracy, Specificity = param$specificity,
                                                                  Subsumption = param$subsumption, BranchBound = param$branchBound,
-                                                                 Parallel = param$parallel)
+                                                                 Parallel = param$parallel, ParallelMethod = param$parallelMethod, BinaryReduction = param$binaryReduction)
     # saveRDS(models, file = file.path(param$saveDirectory, "Explore", "modelsCurve"))
   }
   
@@ -287,34 +291,6 @@ convertToExploreData <- function(trainData, modelSettings, search, analysisId, s
   return(exploreData)
 }
 
-
-sortData <- function(exploreData, sort_by = "none", corMethod = "pearson") {
-  
-  if (sort_by == "none") {
-    return(exploreData)
-  } else if (sort_by == "random") {
-    
-    # Random shuffle of covariates (except outcomeCount)
-    shuffle <- sample(2:ncol(exploreData), replace = FALSE)
-    
-    # Order randomly
-    exploreData <-  exploreData[c(1, shuffle)]
-    
-    return(exploreData)
-  } else if (sort_by == "correlation") {
-    
-    # Compute univariate correlation
-    correlation <- sapply(2:ncol(exploreData), function(covId) {
-      cor(exploreData[covId], exploreData$outcomeCount, method = corMethod)
-    })
-    
-    # Order from high to low absolute correlation
-    exploreData <-  exploreData[c(1, order(abs(correlation), decreasing = TRUE) + 1)]
-    
-    return(exploreData)
-  }
-  
-}
 
 predictExplore <- function(plpModel, data, cohort) {
   
