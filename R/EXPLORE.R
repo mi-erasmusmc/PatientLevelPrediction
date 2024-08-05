@@ -120,6 +120,9 @@ fitExplore <- function(trainData,
   
   exploreData <- convertToExploreData(trainData, param$variableSelection, search, analysisId, param$saveDirectory)
   
+  # convert age to decades
+  exploreData['1002'] <- round(exploreData['1002']/10)*10
+  
   # train model
   fit <- tryCatch({
     ParallelLogger::logInfo('Running Explore')
@@ -291,17 +294,19 @@ convertToExploreData <- function(trainData, modelSettings, search, analysisId, s
   return(exploreData)
 }
 
-
 predictExplore <- function(plpModel, data, cohort) {
   
   # Convert to dense covariates
   covariates <- as.data.frame(data$covariateData$covariates)
   covariates <- covariates[covariates$covariateId %in% plpModel$model$coefficients,] # Select only covariates included in model
-  denseData <- reshape2::dcast(covariates, rowId ~ covariateId, value.var = 'covariateValue', fill = 0)
+  exploreData <- reshape2::dcast(covariates, rowId ~ covariateId, value.var = 'covariateValue', fill = 0)
   
-  exploreData <- merge(cohort[c("rowId", "outcomeCount")], denseData, by = 'rowId', all.x = TRUE)
-  exploreData[is.na(exploreData)] <- 0
-  exploreData[c("rowId", "outcomeCount")] <- NULL
+  # exploreData <- merge(cohort[c("rowId", "outcomeCount")], exploreData, by = 'rowId', all.x = TRUE)
+  # exploreData[is.na(exploreData)] <- 0
+  # exploreData[c("rowId", "outcomeCount")] <- NULL
+  
+  # convert age to decades
+  exploreData['1002'] <- round(exploreData['1002']/10)*10
   
   prediction <- data.frame(rowId=cohort$rowId, value=as.numeric(Explore::predictExplore(model = plpModel$model$fit, test_data = exploreData)))
   

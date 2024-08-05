@@ -69,9 +69,14 @@ fitRIPPER <- function(trainData,
   
   denseData <- convertToDenseData(trainData, param$variableSelection, search, analysisId, param$saveDirectory)
   
+  # convert age to groups
+  denseData['1002'] <- cut(denseData[['1002']],breaks=c(0,25,50,75,100),labels=c('0-25','25-50','50-75','75-100'))
+
   # convert to factors (JRip cannot handle numeric features)
-  denseData <- as.data.frame(sapply(denseData, function(col) factor(col, levels = c(0,1))), stringsAsFactors = TRUE)
-  
+  # binary_cols <- sapply(1:ncol(denseData), function(c) all(denseData[[c]] %in% 0:1))
+  # denseData[binary_cols] <- as.data.frame(sapply(denseData[binary_cols], function(col) factor(col, levels = c(0,1))), stringsAsFactors = TRUE)
+  denseData <- as.data.frame(sapply(denseData, function(col) factor(col, levels = unique(col))), stringsAsFactors = TRUE)
+
   # train model
   fit <- tryCatch({
     ParallelLogger::logInfo('Running RIPPER')
@@ -229,13 +234,21 @@ predictRIPPER <- function(plpModel, data, cohort) {
   covariates <- covariates[covariates$covariateId %in% varSelection,] # Select only covariates included in model
   denseData <- reshape2::dcast(covariates, rowId ~ covariateId, value.var = 'covariateValue', fill = 0)
   
+  # convert age to groups
+  denseData['1002'] <- cut(denseData[['1002']],breaks=c(0,25,50,75,100),labels=c('0-25','25-50','50-75','75-100'))
+  
+  # convert to factors (JRip cannot handle numeric features)
+  # binary_cols <- sapply(1:ncol(denseData), function(c) all(denseData[[c]] %in% 0:1))
+  # denseData[binary_cols] <- as.data.frame(sapply(denseData[binary_cols], function(col) factor(col, levels = c(0,1))), stringsAsFactors = TRUE)
+  denseData <- as.data.frame(sapply(denseData, function(col) factor(col, levels = unique(col))), stringsAsFactors = TRUE)
+  
   # Check if all covariates in data (in case no observations in test set with record)
   addCols <- varSelection[!(varSelection %in% c(colnames(denseData), "outcomeCount"))]
   denseData[addCols] <- 0
   
-  denseData <- merge(cohort[c("rowId", "outcomeCount")], denseData, by = 'rowId', all.x = TRUE)
-  denseData[is.na(denseData)] <- 0
-  denseData[c("rowId", "outcomeCount")] <- NULL
+  # denseData <- merge(cohort[c("rowId", "outcomeCount")], denseData, by = 'rowId', all.x = TRUE)
+  # denseData[is.na(denseData)] <- 0
+  # denseData[c("rowId", "outcomeCount")] <- NULL
   
   prediction <- data.frame(rowId=cohort$rowId, value=as.numeric(stats::predict(plpModel$model$fit, denseData)==1))
   
