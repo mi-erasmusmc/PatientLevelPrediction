@@ -38,7 +38,7 @@
 #'
 #' @export
 setExplore <- function( # TODO: check default settings
-  variableSelection = PatientLevelPrediction::setUnivariateSelection(),
+  variableSelection = NULL,
   variableNumber = 10, # TODO: can be removed???
   startRulelength = 1,
   endRulelength = 3,
@@ -56,6 +56,7 @@ setExplore <- function( # TODO: check default settings
   sorted = "none",
   parallel = FALSE,
   parallelMethod = "ONE",
+  sampleSize = 1,
   binaryReduction = FALSE,
   modelsCurve = FALSE,
   saveDirectory = getwd()){
@@ -78,6 +79,7 @@ setExplore <- function( # TODO: check default settings
                 branchBound = branchBound,
                 parallel = parallel,
                 parallelMethod = parallelMethod,
+                sampleSize = sampleSize,
                 binaryReduction = binaryReduction,
                 modelsCurve = modelsCurve,
                 sorted = sorted,
@@ -119,6 +121,11 @@ fitExplore <- function(trainData,
   start <- Sys.time()
   
   exploreData <- convertToExploreData(trainData, param$variableSelection, search, analysisId, param$saveDirectory)
+  
+  # select training sample 
+  ParallelLogger::logInfo(paste0("Full training set size: ", nrow(exploreData)))
+  exploreData <- exploreData[sample(1:nrow(exploreData), round(nrow(exploreData)*param$sampleSize), replace = FALSE),]
+  ParallelLogger::logInfo(paste0("Used training set size: ", nrow(exploreData)))
   
   # convert age to decades
   exploreData['1002'] <- round(exploreData['1002']/10)*10
