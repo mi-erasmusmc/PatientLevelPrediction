@@ -28,6 +28,7 @@
 #' @param accuracy 
 #' @param balancedAccuracy 
 #' @param specificity 
+#' @param outputMethod
 #' @param printSettings 
 #' @param printPerformance 
 #' @param subsumption 
@@ -49,6 +50,7 @@ setExplore <- function( # TODO: check default settings
   accuracy = 0,
   balancedAccuracy = 0,
   specificity = 0,
+  outputMethod = "BEST",
   printSettings = TRUE,
   printPerformance = TRUE,
   subsumption = FALSE,
@@ -73,6 +75,7 @@ setExplore <- function( # TODO: check default settings
                 accuracy = accuracy,
                 balancedAccuracy = balancedAccuracy,
                 specificity = specificity,
+                outputMethod = outputMethod,
                 printSettings = printSettings,
                 printPerformance = printPerformance,
                 subsumption = subsumption,
@@ -141,7 +144,7 @@ fitExplore <- function(trainData,
                           OperatorMethod = param$operatorMethod, CutoffMethod = param$cutoffMethod,
                           FeatureInclude = param$featureInclude, Maximize = param$maximize,
                           Accuracy = param$accuracy, BalancedAccuracy = param$balancedAccuracy, Specificity = param$specificity,
-                          Subsumption = param$subsumption, BranchBound = param$branchBound,
+                          OutputMethod = param$outputMethod, Subsumption = param$subsumption, BranchBound = param$branchBound,
                           Sorted = param$sorted, Parallel = param$parallel, ParallelMethod = param$parallelMethod, BinaryReduction = param$binaryReduction)
   },
   finally = ParallelLogger::logInfo('Done.')
@@ -196,7 +199,7 @@ fitExplore <- function(trainData,
                                                                  StartRulelength = param$startRulelength, EndRulelength = param$endRulelength, 
                                                                  OperatorMethod = param$operatorMethod, CutoffMethod = param$cutoffMethod,
                                                                  FeatureInclude = param$featureInclude, Maximize = param$maximize,
-                                                                 Accuracy = param$accuracy, Specificity = param$specificity,
+                                                                 Accuracy = param$accuracy, Specificity = param$specificity, OutputMethod = param$outputMethod,
                                                                  Subsumption = param$subsumption, BranchBound = param$branchBound,
                                                                  Parallel = param$parallel, ParallelMethod = param$parallelMethod, BinaryReduction = param$binaryReduction)
     # saveRDS(models, file = file.path(param$saveDirectory, "Explore", "modelsCurve"))
