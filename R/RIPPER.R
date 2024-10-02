@@ -90,7 +90,7 @@ fitRIPPER <- function(trainData,
   ParallelLogger::logTrace('Returned from fitting RIPPER')
   comp <- Sys.time() - start
   
-  ParallelLogger::logInfo(paste0("RIPPER rule: ", fit$classifier$toString()))
+  ParallelLogger::logInfo(paste0("RIPPER rule: ", fit$classifier$toString(), " and number of rules: ", fit$classifier$getRuleset()$size()))
   
   ParallelLogger::logTrace('Getting variable importance')
   # Get the features selected using RIPPER
@@ -114,8 +114,10 @@ fitRIPPER <- function(trainData,
   #   dplyr::arrange(-abs(.data$covariateValue)) %>%
   #   dplyr::collect()
   
-  modelTrained <-  list(fit = fit,
-                        coefficients = varImp$covariateId[varImp$value==1])
+  modelTrained <- list(fit = fit,
+                        coefficients = varImp$covariateId[varImp$value==1],
+                        modelString = fit$classifier$toString(),
+                        numRules = fit$classifier$getRuleset()$size())
   
   # Getting predictions on train set:
   tempModel <- list(model = modelTrained)
@@ -244,7 +246,7 @@ predictRIPPER <- function(plpModel, data, cohort) {
   # convert to factors (JRip cannot handle numeric features)
   # binary_cols <- sapply(1:ncol(denseData), function(c) all(denseData[[c]] %in% 0:1))
   # denseData[binary_cols] <- as.data.frame(sapply(denseData[binary_cols], function(col) factor(col, levels = c(0,1))), stringsAsFactors = TRUE)
-  denseData <- as.data.frame(sapply(denseData, function(col) factor(col, levels = unique(col))), stringsAsFactors = TRUE)
+  denseData <- as.data.frame(sapply(denseData, function(col) factor(col, levels =unique(col))), stringsAsFactors = TRUE)
   
   # Check if all covariates in data (in case no observations in test set with record)
   addCols <- varSelection[!(varSelection %in% c(colnames(denseData), "outcomeCount"))]

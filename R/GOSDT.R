@@ -1,24 +1,27 @@
 
 #' Create setting for GOSDT with python
 #'
-#' @param ntrees    (list) The number of trees to build 
-#' @param maxDepth   (list) The maximum depth of the tree. If NULL, then nodes are expanded until all leaves are pure or until all leaves contain less than minSamplesSplit samples.
-#' @param seed  A seed when training the final model
+#' @param objective  Loss function (options include "acc", "bacc", "f1", "auc", "pauc")
+#' @param regularization Note: We highly recommend setting the regularization to a value larger than 1/num_samples. A small regularization could lead to a longer training time.
+#' @param maxDepth Used to set the maximum tree depth for solutions, counting a tree with just the root node as depth 1. 0 means unlimited.
+#' @param warmLB 
+#' @param pathToLabels 
+#' @param timeLimit A time limit upon which the algorithm will terminate. If the time limit is reached, the algorithm will terminate with an error. When set to 0, no time limit is imposed.
+#' @param similarSupport Enables the similar support bound imeplemented via the distance index. 
+#' @param seed A seed when training the final model
+#'
+#' @return
+#' @export
 #'
 #' @examples
-#' \dontrun{
-#' model.gosdt <- setGOSDT(...)
-#' }       
-#' Adapted from SklearnClassifierSettings.R                    
-#' @export
 setGOSDT <- function(
     objective = list("auc"),
-    regularization = list(0.005),
-    maxDepth = list(0), # depth_budget
+    regularization = list(0.005), 
+    maxDepth = list(0), 
     warmLB = list(TRUE),
     pathToLabels = list("warm_label.tmp"),
-    timeLimit = list(3600),
-    similarSupport = list(FALSE),
+    timeLimit = list(3600), 
+    similarSupport = list(FALSE), 
     seed = sample(100000,1)
 ){
   

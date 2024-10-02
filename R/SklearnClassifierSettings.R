@@ -282,7 +282,7 @@ setDecisionTree <- function(criterion = list('gini'),
     pythonClass = "DecisionTreeClassifier"
   )
   
-  attr(param, 'saveToJson') <- T
+  attr(param, 'saveToJson') <- F
   attr(param, 'saveType') <- 'file'
   
   result <- list(fitFunction = "fitSklearn",
