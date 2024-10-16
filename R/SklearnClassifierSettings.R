@@ -92,11 +92,24 @@ setAdaBoost <- function(nEstimators = list(10, 50, 200),
 }
 
 
+
+
 AdaBoostClassifierInputs <- function(classifier, param) {
   model <- classifier(
     n_estimators = param[[which.max(names(param) == 'nEstimators')]],
     learning_rate = param[[which.max(names(param) == 'learningRate')]],
     algorithm = param[[which.max(names(param) == 'algorithm')]],
+    random_state = param[[which.max(names(param) == 'seed')]]
+  )
+  
+  return(model)
+}
+
+
+GradientBoostingClassifierInputs <- function(classifier, param) {
+  model <- classifier(
+    n_estimators = param[[which.max(names(param) == 'nEstimators')]],
+    max_depth = param[[which.max(names(param) == 'maxDepth')]],
     random_state = param[[which.max(names(param) == 'seed')]]
   )
   

@@ -176,7 +176,11 @@ predictPythonSklearn <- function(plpModel,
       reticulate::r_to_py(file.path(plpModel$model, "model.pkl"))
     model <- joblib$load(os$path$join(modelLocation))
   }
-
+  
+  if (attr(plpModel$modelDesign$modelSettings$param,"settings")$pythonClass == "GOSDT") {
+    newData[,3] <- as.numeric(round(newData[,3]/10)*10) # convert age to decades
+  }
+  
   included <-
     plpModel$covariateImportance$columnId[plpModel$covariateImportance$included >  0] # does this include map?
   pythonData <- reticulate::r_to_py(newData[, included, drop = F])
@@ -264,6 +268,22 @@ gridCvPython <- function(matrixData,
   
   ###########################################################################
   
+  if (pythonClass == "GOSDT") { # NO HYPERPARAMETER TUNING FOR GOSDT
+    
+    finalParam <- paramSearch[[1]] # only 1 set of parameters, select immediately for final model
+    
+    # select training sample 
+    ParallelLogger::logInfo(paste0("Full training set size: ", nrow(matrixData)))
+    subset <- sample(1:nrow(matrixData), min(nrow(matrixData), 25000), replace = FALSE)
+    matrixData <- matrixData[subset,] # X
+    labels <- labels[subset,] # y
+    ParallelLogger::logInfo(paste0("Used training set size: ", nrow(matrixData)))
+    
+    matrixData[,3] <- as.numeric(round(matrixData[,3]/10)*10) # convert age to decades 
+    cvPrediction = NULL
+    paramGridSearch = NULL
+    
+    } else {
   gridSearchPredictons <- list()
   length(gridSearchPredictons) <- length(paramSearch)
   
@@ -276,7 +296,6 @@ gridCvPython <- function(matrixData,
 
     for (i in 1:max(fold)) {
       ParallelLogger::logInfo(paste0('Fold ', i))
-
       trainY <- reticulate::r_to_py(labels$outcomeCount[fold != i])
       trainX <- reticulate::r_to_py(matrixData[fold != i, ])
       testX <- reticulate::r_to_py(matrixData[fold == i, ])
@@ -337,6 +356,7 @@ gridCvPython <- function(matrixData,
   
   cvPrediction <- gridSearchPredictons[[optimalParamInd]]$prediction
   cvPrediction$evaluationType <- 'CV'
+  }
   
   ParallelLogger::logInfo('Training final model using optimal parameters')
   
@@ -362,6 +382,17 @@ gridCvPython <- function(matrixData,
                    np,
                    pythonClass)
   
+  # saving model
+  if (!dir.exists(file.path(modelLocation))) {
+    dir.create(file.path(modelLocation), recursive = T)
+  }
+  if (saveToJson) {
+    sklearnToJson(model = model,
+                  path = file.path(modelLocation, "model.json"))
+  } else{
+    joblib$dump(model, file.path(modelLocation, "model.pkl"), compress = T)
+  }
+  
   ParallelLogger::logInfo("Calculating predictions on all train data...")
   prediction <-
     predictValues(
@@ -376,18 +407,7 @@ gridCvPython <- function(matrixData,
   
   prediction <- rbind(prediction,
                       cvPrediction)
-  
-  # saving model
-  if (!dir.exists(file.path(modelLocation))) {
-    dir.create(file.path(modelLocation), recursive = T)
-  }
-  if (saveToJson) {
-    sklearnToJson(model = model,
-                  path = file.path(modelLocation, "model.json"))
-  } else{
-    joblib$dump(model, file.path(modelLocation, "model.pkl"), compress = T)
-  }
-  
+
   # feature importance
   variableImportance <-
     tryCatch({
@@ -447,23 +467,18 @@ fitPythonModel <-
       if (param$warmLB) {
         pd <- reticulate::import('pandas')
         
-        # guess thresholds
-        import_thresholds <- reticulate::import('gosdt', convert=FALSE)
-        compute_thresholds <- import_thresholds[['model']][['threshold_guess']][['compute_thresholds']]
-        trainX_threshold <- compute_thresholds(X = trainX, y = trainY, n_est = as.integer(50), max_depth = as.integer(1))
-        
         # guess lower bound
         start_time = Sys.time()
         
         import_threshold <- reticulate::import('sklearn', convert=FALSE)
-        classifier_threshold <- import_threshold[['ensemble']][['AdaBoostClassifier']]
-        param_threshold <- list(nEstimators=as.integer(50),learningRate=0.1, algorithm="SAMME.R",seed=as.integer(100))
+        classifier_threshold <- import_threshold[['ensemble']][['GradientBoostingClassifier']]
+        param_threshold <- list(nEstimators=as.integer(30),maxDepth=8,seed=as.integer(100))
         
-        clf <- do.call('AdaBoostClassifierInputs', list(classifier = classifier_threshold, param = param_threshold))
-        clf <- clf$fit(trainX_threshold[0], np$squeeze(trainY))
+        clf <- do.call('GradientBoostingClassifierInputs', list(classifier = classifier_threshold, param = param_threshold))
+        clf <- clf$fit(trainX, np$squeeze(trainY))
         
-        predictionValue  <- clf$predict_proba(trainX_threshold[0]) 
-        warm_labels <- reticulate::py_to_r(predictionValue)[,2]
+        predictionValue  <- clf$predict(trainX) 
+        warm_labels <- reticulate::py_to_r(predictionValue)
         
         elapsed_time = Sys.time()- start_time
         param$lb_time <- elapsed_time
