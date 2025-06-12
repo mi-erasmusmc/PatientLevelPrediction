@@ -59,7 +59,8 @@ createRestrictPlpDataSettings <- function(
     studyEndDate = "",
     firstExposureOnly = FALSE,
     washoutPeriod = 0,
-    sampleSize = NULL) {
+    sampleSize = NULL,
+    subpopulation = NULL) {
   if (studyStartDate != "" && regexpr("^[12][0-9]{3}[01][0-9][0-3][0-9]$", studyStartDate) == -1) {
     stop("Study start date must have format YYYYMMDD")
   }
@@ -75,7 +76,8 @@ createRestrictPlpDataSettings <- function(
     studyEndDate = studyEndDate,
     firstExposureOnly = firstExposureOnly,
     washoutPeriod = washoutPeriod,
-    sampleSize = sampleSize
+    sampleSize = sampleSize,
+    subpopulation = subpopulation
   )
 
   class(result) <- "restrictPlpDataSettings"
@@ -506,6 +508,20 @@ getPlpData <- function(
   }
 
 
+  # filter based on gender yes = female, no = male
+  if (!is.null(restrictPlpDataSettings$subpopulation)) {
+    if (restrictPlpDataSettings$subpopulation=="FEMALE") {
+      cohorts <- cohorts[cohorts$gender==8532,]
+    } else if (restrictPlpDataSettings$subpopulation=="MALE") {
+      cohorts <- cohorts[cohorts$gender==8507,]
+    } else if (restrictPlpDataSettings$subpopulation=="YOUNG") {
+      cohorts <- cohorts[cohorts$ageYear<35,]
+    } else if (restrictPlpDataSettings$subpopulation=="OLD") {
+      cohorts <- cohorts[cohorts$ageYear>60,]
+    } else {
+      stop("subpopulation not supported")
+    }
+  }
   result <- list(
     cohorts = cohorts,
     outcomes = outcomes,

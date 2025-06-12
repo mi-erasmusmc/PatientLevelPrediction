@@ -41,6 +41,7 @@ externalValidatePlp <- function(plpModel,
   prediction$evaluationType <- "Validation"
 
   # Recalibrate
+  # TODO: on subset of data?
   # =======
   if (!is.null(settings$recalibrate)) {
     for (recalMethod in settings$recalibrate) {
@@ -402,7 +403,7 @@ createValidationSettings <- function(recalibrate = NULL,
   checkIsClass(recalibrate, c("character", "NULL"))
   if (!is.null(recalibrate)) {
     if (sum(recalibrate %in% c("recalibrationInTheLarge", "weakRecalibration")) !=
-      length(recalibrate)) {
+        length(recalibrate)) {
       ParallelLogger::logError(
         "Incorrect recalibrate options used.  Must be recalibrationInTheLarge or weakRecalibration"
       )
@@ -422,7 +423,7 @@ createValidationSettings <- function(recalibrate = NULL,
 #' @param targetId The targetId of the target cohort to validate on
 #' @param outcomeId The outcomeId of the outcome cohort to validate on
 #' @param populationSettings A list of population restriction settings created
-#' by \code{createPopulationSettings}. Default is NULL and then this is taken
+#' by \code{createStudyPopulationSettings}. Default is NULL and then this is taken
 #' from the model
 #' @param restrictPlpDataSettings A list of plpData restriction settings
 #' created by \code{createRestrictPlpDataSettings}. Default is NULL and then
@@ -549,6 +550,9 @@ validateExternal <- function(validationDesignList,
                              logSettings = createLogSettings(verbosity = "INFO", 
                                                              logName = "validatePLP"),
                              outputFolder,
+                             rerun = FALSE,
+                             internalSplitSettings = NULL,
+                             subpopulationList = list("FULL"),
                              cohortDefinitions = NULL) {
   # Input checks
   changedInputs <- checkValidateExternalInputs(
@@ -590,68 +594,106 @@ validateExternal <- function(validationDesignList,
   results <- NULL
   for (design in validationDesignList) {
     for (database in databaseDetails) {
-      databaseName <- database$cdmDatabaseName
-
-      ParallelLogger::logInfo(paste(
-        "Validating models on", database$cdmDatabaseName,
-        "with targetId:", design$targetId, "and outcomeId:", design$outcomeId
-      ))
-
-      modelDesigns <- extractModelDesigns(design$plpModelList)
-      design <- fromDesignOrModel(design, modelDesigns, "restrictPlpDataSettings")
-
-      # get plpData
-      plpData <- getData(design, database, outputFolder, downloadTasks)
-      if (is.null(plpData)) {
-        ParallelLogger::logInfo("Couldn't extract plpData for the given design and database, proceeding to the next one.")
-        next
-      }
-      # create study population
-      population <- getPopulation(design, modelDesigns, plpData)
-
-      if (sum(population$outcomeCount) < 10) {
-        ParallelLogger::logInfo(
-          paste(
-            "Outcome size is less than 10, skipping validation for design and database:",
-            databaseName,
-            "and targetId:", design$targetId,
-            "outcomeId", design$outcomeId
-          )
-        )
-        next
-      }
-
-      results <- lapply(design$plpModelList, function(model) {
-        analysisName <- paste0("Analysis_", analysisInfo[databaseName])
-        analysisDone <- file.exists(
-          file.path(
-            outputFolder,
-            databaseName,
-            analysisName,
-            "validationResult",
-            "runPlp.rds"
-          )
-        )
-        if (!analysisDone) {
-          validateModel(
-            plpModel = model,
+      for (subpopulation in subpopulationList) {
+        
+        # browser()
+        
+        databaseName <- database$cdmDatabaseName
+        
+        ParallelLogger::logInfo(paste(
+          "Validating models on", database$cdmDatabaseName,
+          "with targetId:", design$targetId, "and outcomeId:", design$outcomeId,
+          "for population:", subpopulation
+        ))
+        
+        modelDesigns <- extractModelDesigns(design$plpModelList)
+        design <- fromDesignOrModel(design, modelDesigns, "restrictPlpDataSettings")
+        
+        # get plpData
+        plpData <- getData(design, database, outputFolder, downloadTasks)
+        if (is.null(plpData)) {
+          ParallelLogger::logInfo("Couldn't extract plpData for the given design and database, proceeding to the next one.")
+          next
+        }
+        # create study population
+        population <- getPopulation(design, modelDesigns, plpData)
+        
+        if (!is.null(internalSplitSettings)) { # check if development & validation database same
+          
+          data <- splitData(
             plpData = plpData,
             population = population,
-            recalibrate = design$recalibrate,
-            runCovariateSummary = design$runCovariateSummary,
-            outputFolder = outputFolder,
-            databaseName = databaseName,
-            analysisName = analysisName
+            splitSettings = internalSplitSettings
           )
-        } else {
-          ParallelLogger::logInfo(paste0(
-            "Analysis ", analysisName, " already done",
-            ", Proceeding to the next one."
-          ))
+          
+          # data$Train$metaData <- plpData$metaData
+          data$Test$metaData <- plpData$metaData
+          
+          plpData <- data$Test
+          population <- data$Test$labels
         }
-
-        analysisInfo[[databaseName]] <<- analysisInfo[[databaseName]] + 1
-      })
+        
+        if (subpopulation != "FULL") {
+          # TODO: either get this from design -> restrictPLPsettings OR output it somehow (otherwise not recognized as different plpData object)
+          plpData$metaData$restrictPlpDataSettings$subpopulation <- subpopulation
+            
+          if (subpopulation=="FEMALE") {
+            population <- population[population$gender==8532,]
+          } else if (subpopulation=="MALE") {
+            population <- population[population$gender==8507,]
+          } else if (subpopulation=="YOUNG") {
+            population <- population[population$ageYear<35,]
+          } else if (subpopulation=="OLD") {
+            population <- population[population$ageYear>60,]
+          } else {
+            stop("subpopulation not supported")
+          }
+        }
+        
+        if (sum(population$outcomeCount) < 10) {
+          ParallelLogger::logInfo(
+            paste(
+              "Outcome size is less than 10, skipping validation for design and database:",
+              databaseName,
+              "and targetId:", design$targetId,
+              "outcomeId", design$outcomeId
+            )
+          )
+          next
+        }
+        
+        results <- lapply(design$plpModelList, function(model) {
+          analysisName <- paste0("Analysis_", analysisInfo[databaseName])
+          analysisDone <- file.exists(
+            file.path(
+              outputFolder,
+              databaseName,
+              analysisName,
+              "validationResult",
+              "runPlp.rds"
+            )
+          )
+          if (rerun||!analysisDone) {
+            validateModel(
+              plpModel = model,
+              plpData = plpData,
+              population = population,
+              recalibrate = design$recalibrate,
+              runCovariateSummary = design$runCovariateSummary,
+              outputFolder = outputFolder,
+              databaseName = databaseName,
+              analysisName = analysisName
+            )
+          } else {
+            ParallelLogger::logInfo(paste0(
+              "Analysis ", analysisName, " already done",
+              ", Proceeding to the next one."
+            ))
+          }
+          
+          analysisInfo[[databaseName]] <<- analysisInfo[[databaseName]] + 1
+        })
+      }
     }
   }
   for (database in databaseDetails) {
@@ -689,23 +731,33 @@ validateModel <-
     if (is.character(plpModel)) {
       plpModel <- loadPlpModel(plpModel)
     }
-
+    
+    # # TODO: if in same database -> use splitSettings
+    # data <- splitData(
+    #   plpData = plpData,
+    #   population = population,
+    #   splitSettings = createDefaultSplitSetting()
+    # )
+    # # plpModel$prediction <- NULL
+    # data$Train$metaData <- plpData$metaData
+    # data$Test$metaData <- plpData$metaData
+    
     result <- externalValidatePlp(
       plpModel = plpModel,
-      plpData = plpData,
-      population = population,
+      plpData = plpData, # TODO: check was plpData, data$Test
+      population = population, # TODO: check was population, data$Test$labels
       settings = list(
         recalibrate = recalibrate,
         runCovariateSummary = runCovariateSummary
       )
     )
     savePlpResult(result,
-      dirPath = file.path(
-        outputFolder,
-        databaseName,
-        analysisName,
-        "validationResult"
-      )
+                  dirPath = file.path(
+                    outputFolder,
+                    databaseName,
+                    analysisName,
+                    "validationResult"
+                  )
     )
     return(result)
   }
