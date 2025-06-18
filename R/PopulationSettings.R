@@ -61,7 +61,8 @@ createStudyPopulationSettings <- function(
     startAnchor = "cohort start",
     riskWindowEnd = 365,
     endAnchor = "cohort start",
-    restrictTarToCohortEnd = FALSE) {
+    restrictTarToCohortEnd = FALSE,
+    subpopulation = NULL) {
   checkIsClass(binary, "logical")
   checkNotNull(binary)
 
@@ -137,7 +138,8 @@ createStudyPopulationSettings <- function(
     startAnchor = startAnchor,
     riskWindowEnd = riskWindowEnd,
     endAnchor = endAnchor,
-    restrictTarToCohortEnd = restrictTarToCohortEnd
+    restrictTarToCohortEnd = restrictTarToCohortEnd,
+    subpopulation = subpopulation
   )
 
   class(result) <- "populationSettings"
@@ -200,6 +202,7 @@ createStudyPopulation <- function(
   riskWindowEnd <- populationSettings$riskWindowEnd
   endAnchor <- populationSettings$endAnchor
   restrictTarToCohortEnd <- populationSettings$restrictTarToCohortEnd
+  subpopulation <- populationSettings$subpopulation
 
   # parameter checks
   if (!inherits(x = plpData, what = c("plpData"))) {
@@ -223,6 +226,7 @@ createStudyPopulation <- function(
   ParallelLogger::logDebug(paste0("riskWindowEnd: ", riskWindowEnd))
   ParallelLogger::logDebug(paste0("endAnchor: ", endAnchor))
   ParallelLogger::logDebug(paste0("restrictTarToCohortEnd: ", restrictTarToCohortEnd))
+  ParallelLogger::logDebug(paste0("subpopulation: ", subpopulation))
 
   if (is.null(population)) {
     population <- plpData$cohorts
@@ -455,6 +459,23 @@ createStudyPopulation <- function(
     ParallelLogger::logTrace("Outcome is count")
     population <- population %>%
       dplyr::mutate(outcomeCount = ifelse(is.na(.data$ocount), 0, .data$ocount))
+  }
+  
+  if (!is.null(subpopulation)) {
+    # TODO: either get this from design -> restrictPLPsettings OR output it somehow (otherwise not recognized as different plpData object)
+    # plpData$metaData$restrictPlpDataSettings$subpopulation <- subpopulation
+    
+    if (subpopulation=="FEMALE") {
+      population <- population[population$gender==8532,]
+    } else if (subpopulation=="MALE") {
+      population <- population[population$gender==8507,]
+    } else if (subpopulation=="YOUNG") {
+      population <- population[population$ageYear<35,]
+    } else if (subpopulation=="OLD") {
+      population <- population[population$ageYear>60,]
+    } else {
+      stop("subpopulation not supported")
+    }
   }
 
   population <- population %>%
