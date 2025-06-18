@@ -70,9 +70,9 @@ createDefaultSplitSetting <- function(testFraction = 0.25,
 
   # add type check
   checkIsClass(type, c("character"))
-  if (!type %in% c("stratified", "time", "subject")) {
+  if (!type %in% c("stratified", "time", "subject", "input")) {
     ParallelLogger::logError("Invalid type setting.
-      Pick from: 'stratified','time','subject'")
+      Pick from: 'stratified','time','subject', 'input'")
     stop("Incorrect Type")
   }
 
@@ -91,6 +91,9 @@ createDefaultSplitSetting <- function(testFraction = 0.25,
   }
   if (type == "subject") {
     attr(splitSettings, "fun") <- "subjectSplitter"
+  }
+  if (type == "input") {
+    attr(splitSettings, "fun") <- "inputSplitter"
   }
   class(splitSettings) <- "splitSettings"
   return(splitSettings)
@@ -402,6 +405,14 @@ randomSplitter <- function(population, splitSettings) {
       " were not used for training or testing"))
   }
   # return index vector
+  write.csv(split, file = "split_aggregate.csv", row.names = FALSE)
+
+  return(split)
+}
+
+inputSplitter <- function(population, splitSettings) {
+  split <- read.csv("split_aggregate.csv")
+  
   return(split)
 }
 
