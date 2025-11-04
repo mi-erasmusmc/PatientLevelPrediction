@@ -229,7 +229,8 @@ splitData <- function(plpData = plpData,
     class(trainData) <- "plpData"
     trainData$labels <- population %>% 
       dplyr::filter(.data$rowId %in% trainId$rowId)
-    trainData$folds <- trainId
+    trainId <- trainId %>% dplyr::filter(trainId$rowId %in% trainData$labels$rowId) ### CHECK FOR OTHER SETTINGS THIS IS ADDED
+    trainData$folds <- trainId 
 
     # restrict to trainIds
     if (length(trainId$rowId) < 200000) {
@@ -264,7 +265,8 @@ splitData <- function(plpData = plpData,
     class(testData) <- "plpData"
     testData$labels <- population %>%
       dplyr::filter(.data$rowId %in% testId$rowId)
-
+    testId <- testId %>% dplyr::filter(testId$rowId %in% testData$labels$rowId) ### CHECK FOR OTHER SETTINGS THIS IS ADDED
+    
     if (length(testId$rowId) < 200000) {
       testData$covariateData <- limitCovariatesToPopulation(
         plpData$covariateData,
