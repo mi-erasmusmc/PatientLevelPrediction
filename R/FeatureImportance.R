@@ -15,6 +15,122 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# reticulate::virtualenv_install(packages="shap")
+
+#' Model Agnostic Feature Importance
+#' @export
+# TODO: add convergence
+computeFI <- function(plpResult, population, plpData, method="PFI", convergence = TRUE, repeats = 1,
+                      covariates = NULL, cores = NULL, log = NULL,
+                      logthreshold = "INFO") {
+  if (method == "PFI_R") {
+    fi <- pfi(plpResultEunomia, populationEunomia, plpDataEunomia)
+  } else if (method %in% c("PFI", "SHAP")) {
+    fi <- fiSklearn(plpResultEunomia, populationEunomia, plpDataEunomia, method)
+  }
+  
+  return(fi)
+}
+
+#' Model Agnostic Feature Importance
+#' @export
+fiSklearn <- function(plpResult, population, plpData, method="PFI", convergence = TRUE,
+                       covariates = NULL, cores = NULL, log = NULL,
+                       logthreshold = "INFO") {
+  if (!is.null(log)) {
+    appender <- ParallelLogger::createFileAppender(
+      layout = ParallelLogger::layoutParallel,
+      fileName = log
+    )
+    
+    logger <- ParallelLogger::createLogger(
+      name = "PAR",
+      threshold = logthreshold,
+      appenders = list(appender)
+    )
+    ParallelLogger::registerLogger(logger)
+  }
+  
+  if (is.null(covariates)) { # TODO: why is this restricted to positive covariateImportance? 
+    covariates <- plpResult$model$covariateImportance %>%
+      # dplyr::filter(.data$covariateValue != 0) %>%
+      dplyr::select("covariateId") %>%
+      dplyr::pull()
+  }
+  
+  # TODO: check if input is sklearn model (or "pythonModule" exists) ?
+  
+  # convert
+  matrixObjects <- toSparseM(
+    plpData = plpData,
+    cohort = population,
+    map = plpResult$model$covariateImportance %>%
+      dplyr::select("columnId", "covariateId")
+  )
+  matrixData <- matrixObjects$dataMatrix
+  labels <- matrixObjects$labels
+  
+  # load model
+  if (attr(plpResult$model, "saveToJson")) {
+    modelLocation <-
+      reticulate::r_to_py(file.path(plpResult$model$model, "model.json"))
+    model <- sklearnFromJson(path = modelLocation)
+  } else {
+    os <- reticulate::import("os")
+    joblib <- reticulate::import("joblib", convert = FALSE)
+    modelLocation <-
+      reticulate::r_to_py(file.path(plpResult$model$model, "model.pkl"))
+    model <- joblib$load(os$path$join(modelLocation))
+  }
+  
+  X <- reticulate::r_to_py(matrixData)
+  y <- reticulate::r_to_py(matrix(labels$outcomeCount, ncol = 1))
+  
+  names <- matrixObjects$covariateMap
+  names <- names[order(names$columnId),]
+  
+  if (method == "PFI") {
+    reticulate::py_require("scikit-learn")
+    sklearn <- reticulate::import("sklearn")
+    
+    res <- sklearn$inspection$permutation_importance(estimator = model,
+                                                     X = X$toarray(),
+                                                     y = y$ravel(),
+                                                     scoring = "roc_auc",
+                                                     n_repeats = as.integer(1))
+    values <- res$importances_mean
+
+    varImp <- data.frame(
+      covariateId = covariates,
+      fi = values[names$covariateId %in% covariates]
+    )
+    
+  } else if (method == "SHAP") {
+    reticulate::py_require("shap")
+    reticulate::py_require("numpy")
+    
+    shap <- reticulate::import("shap")
+    np <- reticulate::import("numpy")
+
+    explainer = shap$Explainer(model = model,
+                               masker = X$toarray(),
+                               link=shap$links$identity)
+
+    X_np <- np$array(as.matrix(matrixData))
+    shap_values = explainer(X_np)
+    
+    feature_importance <- np$mean(np$abs(shap_values$values), axis=as.integer(0)) # compute average
+    
+    varImp <- data.frame(
+      covariateId = covariates,
+      fi = feature_importance[,1] # TODO: check columns
+    )
+  }
+
+  return(varImp)
+}
+
+
 #' Permutation Feature Importance
 #'
 #' @description
