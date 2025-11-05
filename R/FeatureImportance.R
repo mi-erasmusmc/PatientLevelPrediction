@@ -69,14 +69,15 @@ pfi <- function(plpResult, population, plpData, repeats = 1,
     ParallelLogger::registerLogger(logger)
   }
 
-
-  if (is.null(covariates)) {
+  
+  
+  if (is.null(covariates)) { # TODO: why is this restricted to positive covariateImportance? 
     covariates <- plpResult$model$covariateImportance %>%
-      dplyr::filter(.data$covariateValue != 0) %>%
+      # dplyr::filter(.data$covariateValue != 0) %>%
       dplyr::select("covariateId") %>%
       dplyr::pull()
   }
-
+  
   # add code to format covariateData based on plpModel
 
   if (!is.null(plpResult$model$preprocessing$featureEngineering)) {
