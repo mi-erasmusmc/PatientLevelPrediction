@@ -124,6 +124,10 @@ fiSklearn <- function(plpResult, population, plpData, method="PFI", params = NUL
     reticulate::py_require("shap")
     reticulate::py_require("numpy")
     
+    sklearn_predict <- function(X) {
+      model$predict_proba(X)
+    }
+    
     shap <- reticulate::import("shap")
     np <- reticulate::import("numpy")
     
@@ -134,7 +138,7 @@ fiSklearn <- function(plpResult, population, plpData, method="PFI", params = NUL
       background_size <- as.integer(ceiling(N * params[[p]]$background_sample))
       X_background <- X[1L:background_size, ] # TODO: extend with random sample 
       
-      explainer = shap$Explainer(model = model,
+      explainer = shap$Explainer(model = sklearn_predict,
                                  masker = X_background$toarray(),
                                  link=shap$links$identity)
       
@@ -213,8 +217,8 @@ convergencePlot <- function(featureImportanceList, params, metric = "distance", 
     # convert to df for plot
     param_matrix <- do.call(rbind, lapply(params, function(x) unlist(x)))
     df_plot <- as.data.frame(param_matrix)
-    df_plot <- df_plot[2:(length(values)+1),]
-    df_plot$value <- values
+    df_plot$value <- NA
+    df_plot$value[2:(length(values)+1)] <- values
     
     # TODO: remove packages here
     library(ggplot2)
@@ -224,6 +228,7 @@ convergencePlot <- function(featureImportanceList, params, metric = "distance", 
     settings <- colnames(df_plot)[-length(colnames(df_plot))]
     for (s in settings) {
       df_plot_s <- df_plot %>%
+        filter(!is.na(value)) %>%
         group_by(!!sym(s)) %>%
         summarise(avg_value = mean(value, na.rm = TRUE))
       
