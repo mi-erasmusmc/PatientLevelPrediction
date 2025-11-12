@@ -885,6 +885,10 @@ SVCInputs <- function(classifier, param) {
     break_ties = FALSE,
     random_state = param[[which.max(names(param) == "seed")]]
   )
+  
+  return(model)
+}
+  
 #' @export
 setLassoLogisticRegressionSklearn <- function(
     C = list(1),
