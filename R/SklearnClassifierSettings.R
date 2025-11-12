@@ -885,6 +885,68 @@ SVCInputs <- function(classifier, param) {
     break_ties = FALSE,
     random_state = param[[which.max(names(param) == "seed")]]
   )
+#' @export
+setLassoLogisticRegressionSklearn <- function(
+    C = list(1),
+    seed = NULL,
+    noShrinkage = list(0),
+    forceIntercept = list(FALSE),
+    maxIterations = list(3000),
+    penalty = list('l1'),
+    solver = list('saga')) { # not all solvers compatible with all penalties
+  checkSklearn()
+  checkIsClass(seed, c("numeric", "NULL", "integer"))
+  if (is.null(seed[1])) {
+    seed <- as.integer(sample(100000000, 1))
+  }
+  # checkIsClass(C, c("numeric", "integer"))
+  # checkHigherEqual(C, 0)
+  
+  # TODO: add checks
+  
+  paramGrid <- list(
+    fit_intercept = forceIntercept,
+    C = C,
+    exclude = noShrinkage,
+    penalty = penalty,
+    solver = solver
+  )
+  
+  param <- listCartesian(paramGrid)
+  
+  attr(param, "settings") <- list(
+    modelType = "logistic",
+    seed = seed[[1]],
+    paramNames = names(paramGrid),
+    # use this for logging params
+    requiresDenseMatrix = FALSE,
+    name = "Lasso Logistic Regression Sklearn",
+    pythonModule = "sklearn.linear_model",
+    pythonClass = "LogisticRegression",
+    maxIterations = maxIterations[1]
+  )
+  
+  attr(param, "saveToJson") <- FALSE # TODO: convert to TRUE
+  attr(param, "saveType") <- "file"
+  
+  result <- list(
+    fitFunction = "fitSklearn",
+    param = param
+  )
+  class(result) <- "modelSettings"
+  
+  return(result)
+}
 
+
+LogisticRegressionInputs <- function(classifier, param) {
+  model <- classifier(
+    C = param[[which.max(names(param) == "C")]],
+    penalty = param[[which.max(names(param) == "penalty")]],
+    random_state = param[[which.max(names(param) == "seed")]],
+    fit_intercept = param[[which.max(names(param) == "fit_intercept")]],
+    solver = param[[which.max(names(param) == "solver")]]
+  )
+  
   return(model)
 }
