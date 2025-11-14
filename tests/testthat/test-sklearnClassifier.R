@@ -301,3 +301,65 @@ test_that("Sklearn predict works", {
   )
   expect_correct_predictions(predictions, testData)
 })
+
+
+
+test_that("Logistic regression sklearn fit works", {
+  skip_if_not_installed("reticulate")
+  skip_on_cran()
+  modelSettings <- setLassoLogisticRegressionSklearn()
+  
+  plpModel <- fitPlp(
+    trainData = tinyTrainData,
+    modelSettings = modelSettings,
+    analysisId = "LogisticRegression",
+    analysisPath = tempdir()
+  )
+  
+  expect_correct_fitPlp(plpModel, trainData)
+  expect_equal(dir(plpModel$model), "model.json")
+  
+  oneModel <- fitPlp(
+    trainData = oneTrainData,
+    modelSettings = modelSettings,
+    analysisId = "LogisticRegressionOne",
+    analysisPath = tempdir()
+  )
+  onePredictions <- predictPlp(oneModel, oneTrainData, oneTrainData$labels)
+  oneTrainPredictions <- oneModel$prediction %>% 
+    dplyr::filter(.data$evaluationType == "Train") %>%
+    dplyr::pull(.data$value)
+  expect_equal(mean(onePredictions$value), mean(oneTrainPredictions))
+  expect_correct_fitPlp(oneModel, oneTrainData)
+})
+
+
+
+test_that("Logistic regression sklearn similar to cyclops", {
+  skip_if_not_installed("reticulate")
+  skip_on_cran()
+  
+  modelSettings <- setLassoLogisticRegressionSklearn()
+  pyModel <- fitPlp(
+    trainData = trainData,
+    modelSettings = modelSettings,
+    analysisId = "LogisticRegression",
+    analysisPath = tempdir()
+  )
+  pyAUC <- computeAuc(pyModel$prediction, confidenceInterval = FALSE)
+  # pyEval <- evaluatePlp(pyModel$prediction)
+  
+  modelSettingsR <- setLassoLogisticRegression()
+  rModel <- fitPlp(
+    trainData = trainData,
+    modelSettings = modelSettingsR,
+    search = "grid",
+    analysisId = "lrTest",
+    analysisPath = tempdir()
+  )
+  rAUC <- computeAuc(rModel$prediction, confidenceInterval = FALSE)
+  # rEval <- evaluatePlp(rModel$prediction)
+  
+  expect_lt(abs(pyAUC-rAUC), 0.03) # ???
+})
+
