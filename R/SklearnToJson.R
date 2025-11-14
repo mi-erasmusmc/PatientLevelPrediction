@@ -49,6 +49,8 @@ sklearnToJson <- function(model, path) {
     serializedModel <- serializeMLP(model)
   } else if (inherits(model, "sklearn.svm._classes.SVC")) {
     serializedModel <- serializeSVM(model)
+  } else if (inherits(model, "sklearn.linear_model._logistic.LogisticRegression")) {
+    serializedModel <- serializeLogisticRegression(model)
   } else {
     stop("Unsupported model")
   }
@@ -98,6 +100,8 @@ sklearnFromJson <- function(path) {
     model <- deSerializeMlp(model)
   } else if (reticulate::py_bool(model["meta"] == "svm")) {
     model <- deSerializeSVM(model)
+  } else if (reticulate::py_bool(model["meta"] == "logistic-regression")) {
+    model <- deserializeLogisticRegression(model)
   } else {
     stop("Unsupported model")
   }
@@ -502,4 +506,41 @@ deSerializeCsrMatrix <- function(csr_dict,
     shape = csr_dict["shape"]
   )
   return(csr_matrix)
+}
+serializeLogisticRegression <- function(model) {
+  linear <- model$`__getstate__`()
+  linear["coef_"] <- linear["coef_"]$tolist()
+  linear["classes_"] <- linear["classes_"]$tolist() 
+  linear["n_iter_"] <- linear["n_iter_"]$tolist() 
+  linear["intercept_"] <- linear["intercept_"]$tolist() 
+  
+  serialized_model <- reticulate::dict(
+    "meta" = "logistic-regression",
+    # "coef_" = model$coef_$tolist(),
+    # "intercept_" = model$intercept_$tolist(),
+    "n_features_in_" = model$n_features_in_,
+    "linear_" = list(linear),
+    "params" = model$get_params()
+  )
+  
+  return(serialized_model)
+}
+
+deserializeLogisticRegression <- function(model_dict) {
+  sklearn <- reticulate::import("sklearn", convert = FALSE)
+  np <- reticulate::import("numpy", convert = FALSE)
+  model <- do.call(
+    sklearn$linear_model$LogisticRegression,
+    reticulate::py_to_r(model_dict["params"])
+  )
+  
+  linear <- model_dict$linear_[0]
+  linear["coef_"] <- np$array(linear["coef_"])
+  linear["classes_"] <- np$array(linear["classes_"])
+  linear["n_iter_"] <- np$array(linear["n_iter_"])
+  linear["intercept_"] <- np$array(linear["intercept_"])
+
+  model$`__setstate__`(linear)
+  
+  return(model)
 }

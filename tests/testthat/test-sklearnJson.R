@@ -159,3 +159,20 @@ test_that("SVM to json is correct", {
 
   expect_true(all.equal(predictions, loadedPredictions))
 })
+
+
+test_that("Logistic regression sklearn to json is correct", {
+  classifier <- sklearn$linear_model$LogisticRegression(C = 10L)
+  
+  model <- classifier$fit(X, y)
+  predictions <- reticulate::py_to_r(model$predict_proba(xUnseen))
+  path <- file.path(tempdir(), "model.json")
+  
+  sklearnToJson(model, path)
+  
+  loadedModel <- sklearnFromJson(path)
+  
+  loadedPredictions <- reticulate::py_to_r(loadedModel$predict_proba(xUnseen))
+  
+  expect_true(all.equal(predictions, loadedPredictions))
+})

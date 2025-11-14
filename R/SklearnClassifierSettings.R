@@ -930,7 +930,7 @@ setLassoLogisticRegressionSklearn <- function(
     maxIterations = maxIterations[1]
   )
   
-  attr(param, "saveToJson") <- FALSE # TODO: convert to TRUE
+  attr(param, "saveToJson") <- TRUE 
   attr(param, "saveType") <- "file"
   
   result <- list(
