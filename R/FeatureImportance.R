@@ -60,14 +60,6 @@ fiSklearn <- function(plpResult, population, plpData, method="PFI", params = NUL
   # TODO: check if input is sklearn model (or "pythonModule" exists) ?
   # TODO: check correct input params per FI method
   
-  params <- listCartesian(params)
-  
-  # if convergence = FALSE use first params
-  if (!convergence) {
-    params <- list(params[[1]])
-  }
-  # TODO: how to sort for convergence?
-  
   # convert
   matrixObjects <- toSparseM(
     plpData = plpData,
@@ -97,27 +89,86 @@ fiSklearn <- function(plpResult, population, plpData, method="PFI", params = NUL
   names <- matrixObjects$covariateMap
   names <- names[order(names$columnId),]
   
+  # start with first set of parameters 
+  paramsSelected <- listCartesian(params)[[1]] # for convergence = FALSE first paramater values are used
+  
+  # set up hyperparameter search
+  if (convergence) {
+    p <- 1 # first parameter setting
+    q <- 1 # first parameter value
+    
+   paramsSearch <- paramsSelected
+   paramsSearch[[p]] <- params[[p]]
+   paramsGrid <- listCartesian(paramsSearch)
+    
+  } else { # no search
+    p <- length(paramsSelected) # last parameter setting to quit after 1 iteration 
+    q <- 1 # only 1 parameter value per setting
+    
+    paramsGrid <- listCartesian(paramsSelected)
+  }
+  
   featureImportanceList <- list()
   converged <- FALSE
-  p <- 0
-  metrics <- c()
-  
+  final <- FALSE
+
   if (method == "PFI") {
     reticulate::py_require("scikit-learn")
     sklearn <- reticulate::import("sklearn")
     
-    while(!converged && p < length(params)) {
-      p <- p + 1 # next set of params
-      
+    while(!converged) {
       res <- sklearn$inspection$permutation_importance(estimator = model,
                                                        X = X$toarray(),
                                                        y = y$ravel(),
-                                                       scoring = params[[p]]$scoring,
-                                                       n_repeats = as.integer(params[[p]]$n_repeats))
+                                                       scoring = paramsGrid[[q]]$scoring,
+                                                       n_repeats = as.integer(paramsGrid[[q]]$n_repeats))
       values <- res$importances_mean
       
-      featureImportanceList[[p]] <- values[names$covariateId %in% covariates]
+      featureImportanceList[[q]] <- values[names$covariateId %in% covariates]
       converged <- checkConvergence(featureImportanceList)
+      
+      if (converged || q == length(paramsGrid)) {
+        ParallelLogger::logInfo(paste0("For p = ", p, " converged ", converged, " at q = ", q))
+        
+        # use current value for this parameter
+        paramsSelected[[p]] <- paramsGrid[[q]][[p]]
+        
+        # create plot when converged or last params done
+        if (convergence) {
+          convergencePlot(featureImportanceList, params[p])
+        }
+        
+        # move to next parameter setting
+        if (p < length(paramsSelected)) {
+          p <- p + 1
+          q <- 1
+          
+          paramsSearch <- paramsSelected
+          paramsSearch[[p]] <- params[[p]]
+          paramsGrid <- listCartesian(paramsSearch)
+          
+          # new hyperparameter search
+          featureImportanceList <- list()
+          converged <- FALSE 
+          
+        } else {
+          if (convergence && !final) { # run with final set of parameters
+            p <- length(paramsSelected) # last parameter setting to quit after 1 iteration 
+            q <- 1 # only 1 parameter value per setting
+            
+            paramsGrid <- listCartesian(paramsSelected)
+            
+            featureImportanceList <- list()
+            converged <- FALSE 
+            final <- TRUE
+            
+          } else {
+            converged <- TRUE # quit loop
+          }
+        }
+      } else {
+        q <- q + 1 # next parameter value
+      }
     }
     
   } else if (method == "SHAP") {
@@ -131,11 +182,11 @@ fiSklearn <- function(plpResult, population, plpData, method="PFI", params = NUL
     shap <- reticulate::import("shap")
     np <- reticulate::import("numpy")
     
-    while(!converged && p < length(params)) {
-      p <- p + 1 # next set of params
+    while(!converged && q < length(params)) {
+      q <- q + 1 # next set of params
       
       N <- nrow(matrixData)
-      background_size <- as.integer(ceiling(N * params[[p]]$background_sample))
+      background_size <- as.integer(ceiling(N * params[[q]]$background_sample))
       X_background <- X[1L:background_size, ] # TODO: extend with random sample 
       
       explainer = shap$Explainer(model = sklearn_predict,
@@ -147,14 +198,9 @@ fiSklearn <- function(plpResult, population, plpData, method="PFI", params = NUL
       
       feature_importance <- np$mean(np$abs(shap_values$values), axis=as.integer(0)) # compute average
       
-      featureImportanceList[[p]] <- feature_importance[,1] # TODO: check columns
+      featureImportanceList[[q]] <- feature_importance[,1] # TODO: check columns
       converged <- checkConvergence(featureImportanceList)
     }
-  }
-  
-  # create plot when converged or last params done
-  if (convergence) {
-    convergencePlot(featureImportanceList, params)
   }
   
   varImp <- data.frame(
@@ -215,8 +261,7 @@ convergencePlot <- function(featureImportanceList, params, metric = "distance", 
     }
     
     # convert to df for plot
-    param_matrix <- do.call(rbind, lapply(params, function(x) unlist(x)))
-    df_plot <- as.data.frame(param_matrix)
+    df_plot <- as.data.frame(params)
     df_plot$value <- NA
     df_plot$value[2:(length(values)+1)] <- values
     
